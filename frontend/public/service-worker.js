@@ -1,18 +1,24 @@
-const CACHE_NAME = 'attendance-hub-v4';
+const CACHE_NAME = 'attendance-hub-v5';
 const ASSETS = [
   './auth.html',
   './index.html',
   './student-dashboard.html',
   './admin.html',
   './faculty-dashboard.html',
-  'https://image2url.com/r2/default/images/1773668714074-7eaefdc5-c41e-4f3b-a408-a1285f72e3c4.png',
+  './summary.html',
+  './icon-192.png',
+  './icon-512.png',
   './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // cache.addAll might fail if an asset is not found.
+      // We log errors and proceed with valid ones.
+      return Promise.allSettled(
+        ASSETS.map((asset) => cache.add(asset))
+      );
     })
   );
   self.skipWaiting();
@@ -37,12 +43,8 @@ self.addEventListener('fetch', (event) => {
       if (cachedResponse) return cachedResponse;
 
       return fetch(event.request).then((networkResponse) => {
-        // If the response is a redirect and the request doesn't allow it, 
-        // the browser would normally throw. We just return it and let 
-        // the browser handle it, or fallback.
         return networkResponse;
       }).catch(() => {
-        // Return index.html or auth.html as fallback for navigation requests
         if (event.request.mode === 'navigate') {
           return caches.match('./auth.html');
         }
@@ -52,10 +54,14 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-    const data = event.data.json();
+    let data = { title: 'Attendance Alert', body: 'New session has started.' };
+    try {
+        data = event.data.json();
+    } catch(e) {}
+
     self.registration.showNotification(data.title, {
         body: data.body,
-        icon: 'https://image2url.com/r2/default/images/1773668714074-7eaefdc5-c41e-4f3b-a408-a1285f72e3c4.png',
-        badge: 'https://image2url.com/r2/default/images/1773668714074-7eaefdc5-c41e-4f3b-a408-a1285f72e3c4.png'
+        icon: './icon-192.png',
+        badge: './icon-192.png'
     });
 });

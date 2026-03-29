@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Student Portal | Smart Attendance</title>
   <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#001a33">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js'));
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(err => console.error('SW register error:', err));
+      });
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
