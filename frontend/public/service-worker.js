@@ -9,6 +9,7 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './icon.svg',
+  './college-logo.png',
   './manifest.json'
 ];
 

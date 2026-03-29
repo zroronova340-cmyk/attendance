@@ -2,7 +2,7 @@
   "id": "attendance-hub-lendi",
   "name": "Smart Attendance Portal",
   "short_name": "Attendance Hub",
-  "description": "Biometric Attendance & Geofencing Management System for Lendi Institute",
+  "description": "The Official Biometric Attendance & Geofencing System for Lendi Institute of Engineering & Technology.",
   "lang": "en-US",
   "dir": "ltr",
   "start_url": "/auth.html",
@@ -12,7 +12,7 @@
   "background_color": "#001a33",
   "theme_color": "#003366",
   "categories": ["education", "productivity", "utilities"],
-  "iarc_rating_id": "00000000-0000-0000-0000-000000000000",
+  "iarc_rating_id": "99-999-999",
   "prefer_related_applications": false,
   "related_applications": [
     {
@@ -23,55 +23,31 @@
   ],
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
+      "src": "college-logo.png",
+      "sizes": "192x192 512x512 any",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-pwa.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-192.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
+      "src": "college-logo.png",
+      "sizes": "192x192 512x512 any",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "icon-512.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
-      "label": "Login Screen",
+      "src": "college-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "label": "Secure Administrative Portal",
       "form_factor": "narrow"
     },
     {
-      "src": "icon-512.png",
-      "sizes": "640x640",
-      "type": "image/jpeg",
-      "label": "Dashboard View",
+      "src": "college-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "label": "Student Dashboard Landscape",
       "form_factor": "wide"
     }
   ],
@@ -79,7 +55,13 @@
     {
       "name": "Student Login",
       "url": "/auth.html",
-      "description": "Quick access to Student Portal"
+      "description": "Direct student portal access",
+      "icons": [
+        {
+          "src": "college-logo.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "share_target": {
@@ -91,19 +73,38 @@
       "url": "url"
     }
   },
-  "file_handlers": [],
-  "protocol_handlers": [],
-  "widgets": [],
+  "file_handlers": [
+    {
+      "action": "/auth.html",
+      "accept": {
+        "text/plain": [".txt"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+attendance",
+      "url": "/auth.html?url=%s"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Live Stats",
+      "description": "View real-time attendance status",
+      "tag": "stats",
+      "ms_ac_template": "widget.json"
+    }
+  ],
   "launch_handler": {
     "client_mode": ["focus-existing", "auto"]
   },
-  "display_override": ["standalone", "minimal-ui", "browser"],
+  "display_override": ["window-controls-overlay", "tabbed", "standalone"],
   "note_taking": {
     "new_note_url": "/auth.html"
   },
   "scope_extensions": [
     {
-      "origin": "https://attendance-portal-lendi.netlify.app"
+      "origin": "*.netlify.app"
     }
   ],
   "edge_side_panel": {
