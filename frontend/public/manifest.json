@@ -1,4 +1,5 @@
 {
+  "id": "attendance-hub-lendi",
   "name": "Smart Attendance Portal",
   "short_name": "Attendance Hub",
   "description": "Biometric Attendance & Geofencing Management System for Lendi Institute",
@@ -12,26 +13,32 @@
   "categories": ["education", "productivity"],
   "icons": [
     {
+      "src": "icon-pwa.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "icon-192.png",
-      "sizes": "192x192",
+      "sizes": "640x640",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
       "src": "icon-192.png",
-      "sizes": "192x192",
+      "sizes": "640x640",
       "type": "image/jpeg",
       "purpose": "maskable"
     },
     {
       "src": "icon-512.png",
-      "sizes": "512x512",
+      "sizes": "640x640",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
       "src": "icon-512.png",
-      "sizes": "512x512",
+      "sizes": "640x640",
       "type": "image/jpeg",
       "purpose": "maskable"
     }
@@ -39,14 +46,14 @@
   "screenshots": [
     {
       "src": "icon-512.png",
-      "sizes": "512x512",
+      "sizes": "640x640",
       "type": "image/jpeg",
       "label": "Login Screen",
       "form_factor": "narrow"
     },
     {
       "src": "icon-512.png",
-      "sizes": "512x512",
+      "sizes": "640x640",
       "type": "image/jpeg",
       "label": "Dashboard View",
       "form_factor": "wide"
