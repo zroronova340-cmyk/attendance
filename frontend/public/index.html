@@ -561,6 +561,10 @@
   </main>
 
   <script>
+    // --- PORT CORRECTION ---
+    if (window.location.port === '5500') {
+        window.location.href = window.location.href.replace(':5500', ':5000');
+    }
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
     if (!user) window.location.href = "auth.html";
     const API_URL = '/api';

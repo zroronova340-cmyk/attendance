@@ -88,6 +88,23 @@ router.post('/register', async (req, res) => {
     // Faculty Approval Logic
     const isApproved = (type === 'faculty') ? false : true;
 
+    // SECURITY: Ensure Face Uniqueness during initial registration
+    if (faceDescriptor && faceDescriptor.length === 128) {
+      const [allUsers, allStudents] = await Promise.all([
+        User.find({ faceDescriptor: { $exists: true, $ne: [] } }),
+        Student.find({ faceDescriptor: { $exists: true, $ne: [] } })
+      ]);
+
+      for (let u of [...allUsers, ...allStudents]) {
+        if (u.faceDescriptor && u.faceDescriptor.length === 128) {
+          const dist = calculateEuclideanDistance(faceDescriptor, u.faceDescriptor);
+          if (dist < 0.5) { // Match found (duplicates found)
+            return res.status(409).json({ message: 'Security Alert: This face is already enrolled by another user profile.' });
+          }
+        }
+      }
+    }
+
     const user = new User({ 
       type, reg, facultyId, adminId, name, mail, phone, pass, 
       section: req.body.section, faceDescriptor, 
@@ -233,8 +250,8 @@ router.post('/enroll-face', async (req, res) => {
     for (let u of [...allUsers, ...allStudents]) {
       if (u._id.toString() !== userId && u.faceDescriptor && u.faceDescriptor.length === 128) {
         const dist = calculateEuclideanDistance(descriptor, u.faceDescriptor);
-        if (dist < 0.3) { // Stricter threshold for uniqueness check
-          return res.status(409).json({ message: 'Security Alert: This face is already enrolled by another user.' });
+        if (dist < 0.5) { // Any match under 0.6 is technically a match; 0.5 is very strict for duplicates.
+          return res.status(409).json({ message: 'Security Alert: This biometric profile is already assigned to another account.' });
         }
       }
     }

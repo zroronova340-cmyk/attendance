@@ -24,13 +24,13 @@
   "icons": [
     {
       "src": "college-logo.png",
-      "sizes": "192x192 512x512 any",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
       "src": "college-logo.png",
-      "sizes": "192x192 512x512 any",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
@@ -40,90 +40,28 @@
       "src": "college-logo.png",
       "sizes": "1920x1080",
       "type": "image/png",
-      "label": "Login Screen",
       "form_factor": "narrow"
-    },
-    {
-      "src": "college-logo.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "label": "Admin Dashboard",
-      "form_factor": "wide"
     }
   ],
   "shortcuts": [
     {
-      "name": "Student Login",
+      "name": "Quick Login",
       "url": "/auth.html",
-      "description": "Direct student portal access",
-      "icons": [
-        {
-          "src": "college-logo.png",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "college-logo.png", "sizes": "192x192" }]
     }
   ],
   "share_target": {
     "action": "/auth.html",
     "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
     "params": {
       "title": "title",
       "text": "text",
       "url": "url"
     }
   },
-  "file_handlers": [
-    {
-      "action": "/auth.html",
-      "accept": {
-        "text/plain": [".txt"]
-      }
-    }
-  ],
-  "protocol_handlers": [
-    {
-      "protocol": "web+attendance",
-      "url": "/auth.html?url=%s"
-    }
-  ],
-  "widgets": [
-    {
-      "name": "Attendance Status",
-      "short_name": "Status",
-      "description": "View live attendance stats on your dashboard.",
-      "tag": "attendance_widget",
-      "ms_ac_template": "widget.json",
-      "icons": [
-        {
-          "src": "college-logo.png",
-          "sizes": "512x512",
-          "type": "image/png"
-        }
-      ],
-      "screenshots": [
-        {
-          "src": "college-logo.png",
-          "sizes": "512x512",
-          "type": "image/png",
-          "label": "Live Sync View"
-        }
-      ]
-    }
-  ],
   "launch_handler": {
     "client_mode": ["focus-existing", "auto"]
-  },
-  "display_override": ["window-controls-overlay", "tabbed", "standalone"],
-  "note_taking": {
-    "new_note_url": "/auth.html"
-  },
-  "scope_extensions": [
-    {
-      "origin": "https://attendance-portal-lendi.netlify.app"
-    }
-  ],
-  "edge_side_panel": {
-    "preferred_width": 400
   }
 }
+

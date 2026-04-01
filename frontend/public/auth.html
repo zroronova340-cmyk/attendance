@@ -14,6 +14,47 @@
         });
       }
     </script>
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const themeCircle = document.getElementById('themeCircle');
+        const themeIcon = document.getElementById('themeIcon');
+        const body = document.body;
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        body.setAttribute('data-theme', savedTheme);
+        updateIcon(savedTheme);
+
+        themeToggle.addEventListener('click', (e) => {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            // Set circle position to button center
+            const rect = themeToggle.getBoundingClientRect();
+            themeCircle.style.top = `${rect.top + rect.height/2}px`;
+            themeCircle.style.left = `${rect.left + rect.width/2}px`;
+            
+            // Trigger animation
+            themeCircle.classList.remove('animate');
+            void themeCircle.offsetWidth; // Trigger reflow
+            themeCircle.classList.add('animate');
+            
+            // Switch theme halfway through animation
+            setTimeout(() => {
+                body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateIcon(newTheme);
+            }, 400);
+        });
+
+        function updateIcon(theme) {
+            if (theme === 'dark') {
+                themeIcon.innerHTML = `<path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
+            } else {
+                themeIcon.innerHTML = `<path d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 5a7 7 0 100 14 7 7 0 000-14z"></path>`;
+            }
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -31,13 +72,31 @@
             --border: #cbd5e1;
             --success: #10b981;
             --danger: #ef4444;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- DARK MODE PALETTE --- */
+        [data-theme="dark"] {
+            --primary: #4cc9f0;
+            --primary-dark: #020617;
+            --primary-light: #3a0ca3;
+            --secondary: #f72585;
+            --secondary-dark: #b5179e;
+            --background: #020617;
+            --card: rgba(15, 23, 42, 0.85);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #1e293b;
+            --success: #4ade80;
+            --danger: #fb7185;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: var(--primary-dark);
+            background: var(--background);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -45,14 +104,71 @@
             padding: 20px;
             position: relative;
             overflow: hidden;
+            transition: background var(--transition), color var(--transition);
+        }
+
+        /* === THEME TOGGLE BUTTON === */
+        .theme-toggle {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--card);
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-color: var(--primary);
+        }
+
+        /* Theme Animation Circle */
+        .theme-transition-circle {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary-dark);
+            pointer-events: none;
+            z-index: 999;
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        .theme-transition-circle.animate {
+            animation: circleExpand 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes circleExpand {
+            0% { transform: scale(0); opacity: 1; }
+            50% { opacity: 1; }
+            100% { transform: scale(500); opacity: 0; }
         }
 
         /* === ANIMATED BACKGROUND === */
         .bg-gradient {
             position: fixed;
             inset: 0;
-            background: linear-gradient(135deg, #002244 0%, #001a33 40%, #003366 100%);
+            background: var(--background);
+            transition: background 1s ease;
             z-index: 0;
+        }
+        
+        [data-theme="dark"] .bg-gradient {
+            background: radial-gradient(circle at top right, #1e1b4b, #020617);
         }
 
         .blob {
@@ -60,11 +176,12 @@
             border-radius: 50%;
             filter: blur(80px);
             opacity: 0.25;
+            transition: background 1s ease, opacity 1s ease;
             animation: blobFloat 12s ease-in-out infinite;
             z-index: 0;
         }
         .blob-1 { width: 500px; height: 500px; background: #1a4d8a; top: -150px; left: -100px; animation-delay: 0s; }
-        .blob-2 { width: 400px; height: 400px; background: #ffcc00; top: 60%; right: -100px; animation-delay: -4s; opacity: 0.1; }
+        .blob-2 { width: 400px; height: 400px; background: var(--secondary); top: 60%; right: -100px; animation-delay: -4s; opacity: 0.1; }
         .blob-3 { width: 300px; height: 300px; background: #0066cc; bottom: -100px; left: 30%; animation-delay: -8s; }
 
         @keyframes blobFloat {
@@ -97,13 +214,15 @@
         }
 
         .auth-container {
-            background: rgba(255, 255, 255, 0.97);
+            background: var(--card);
             border-radius: 28px;
             padding: 44px 40px;
-            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.1);
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05);
             backdrop-filter: blur(20px);
             position: relative;
             overflow: hidden;
+            border: 1px solid var(--border);
+            transition: background var(--transition), border var(--transition);
         }
 
         /* Shimmering top border */
@@ -140,7 +259,7 @@
             to   { transform: scale(1);   opacity: 1; }
         }
 
-        .logo-wrap img { height: 80px; object-fit: contain; display: block; }
+        .logo-wrap img { height: 80px; object-fit: contain; display: block; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1)); }
 
         .logo-ring {
             position: absolute;
@@ -162,6 +281,7 @@
             color: var(--primary);
             letter-spacing: -0.03em;
             line-height: 1.1;
+            transition: color var(--transition);
         }
 
         .auth-header p {
@@ -175,11 +295,13 @@
         .auth-tabs {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            background: #f1f5f9;
+            background: var(--background);
             padding: 4px;
             border-radius: 14px;
             margin-bottom: 28px;
             position: relative;
+            border: 1px solid var(--border);
+            transition: background var(--transition);
         }
 
         .tab-btn {
@@ -213,6 +335,7 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 7px;
+            transition: color var(--transition);
         }
 
         .input-wrap { position: relative; }
@@ -226,18 +349,19 @@
             font-weight: 500;
             font-family: inherit;
             transition: all 0.25s ease;
-            background: #fafcff;
+            background: var(--background);
             color: var(--text-main);
             outline: none;
         }
 
         input:focus, select:focus {
             border-color: var(--primary);
-            background: #fff;
-            box-shadow: 0 0 0 4px rgba(0, 51, 102, 0.1), 0 1px 3px rgba(0,0,0,0.05);
+            background: var(--card);
+            box-shadow: 0 0 0 4px rgba(76, 201, 240, 0.1), 0 1px 3px rgba(0,0,0,0.05);
         }
 
-        input::placeholder { color: #94a3b8; }
+        input::placeholder { color: var(--text-muted); opacity: 0.6; }
+
 
         /* === SUBMIT BUTTON === */
         .submit-btn {
@@ -399,6 +523,14 @@
     <div class="blob blob-2"></div>
     <div class="blob blob-3"></div>
 
+    <!-- Theme Transition Overlay -->
+    <div id="themeCircle" class="theme-transition-circle"></div>
+
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+        <svg id="themeIcon" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 5a7 7 0 100 14 7 7 0 000-14z"></path>
+        </svg>
+    </button>
     <div class="auth-wrapper">
         <div class="auth-container">
             <div class="auth-header">
@@ -473,6 +605,12 @@
     </div>
 
     <script>
+        // --- PORT CORRECTION ---
+        if (window.location.port === '5500') {
+            console.warn('Redirecting from Live Server (5500) to Backend Port (5000)...');
+            window.location.href = window.location.href.replace(':5500', ':5000');
+        }
+
         const API_BASE = '/api/auth';
         const loginTab = document.getElementById('loginTab');
         const registerTab = document.getElementById('registerTab');

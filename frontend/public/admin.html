@@ -23,24 +23,24 @@
   <style>
     /* ─── Design Tokens ─── */
     :root {
-      --primary: #003366;
-      --primary-dark: #001a33;
-      --primary-glow: rgba(0,51,102,0.15);
-      --secondary: #ffcc00;
-      --secondary-glow: rgba(255,204,0,0.2);
-      --danger: #d32f2f;
-      --success: #15803d;
-      --background: #eef2f7;
-      --sidebar: #001e3c;
-      --sidebar-hover: rgba(255,255,255,0.07);
-      --card: #ffffff;
-      --text-main: #0a192f;
-      --text-muted: #546e7a;
-      --border: #dde3ea;
-      --shadow: 0 4px 24px rgba(0,51,102,0.08);
+      --primary: #003366; --primary-dark: #001a33; --primary-glow: rgba(0,51,102,0.15);
+      --secondary: #ffcc00; --secondary-glow: rgba(255,204,0,0.2);
+      --danger: #d32f2f; --success: #15803d; --background: #eef2f7;
+      --sidebar: #001e3c; --sidebar-hover: rgba(255,255,255,0.07);
+      --card: #ffffff; --text-main: #0a192f; --text-muted: #546e7a;
+      --border: #dde3ea; --shadow: 0 4px 24px rgba(0,51,102,0.08);
       --shadow-lg: 0 12px 40px rgba(0,51,102,0.14);
-      --radius: 20px;
-      --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+      --radius: 20px; --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* --- DARK MODE PALETTE --- */
+    [data-theme="dark"] {
+      --primary: #4cc9f0; --primary-dark: #020617; --primary-glow: rgba(76,201,240,0.15);
+      --secondary: #f72585; --secondary-glow: rgba(247,37,133,0.2);
+      --background: #020617; --sidebar: #0f172a;
+      --card: rgba(15, 23, 42, 0.85); --text-main: #f8fafc;
+      --text-muted: #94a3b8; --border: #1e293b;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
     }
 
     * { box-sizing: border-box; }
@@ -435,6 +435,20 @@
     }
     .mobile-toggle:hover { background: var(--primary); color: white; }
 
+    /* Theme Animation Circle */
+    .theme-transition-circle {
+      position: fixed; top: 0; left: 0; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--primary-dark); pointer-events: none; z-index: 9999;
+      transform: scale(0); opacity: 0;
+    }
+    .theme-transition-circle.animate { animation: circleExpand 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    @keyframes circleExpand {
+      0% { transform: scale(0); opacity: 1; }
+      50% { opacity: 1; }
+      100% { transform: scale(500); opacity: 0; }
+    }
+
+
     /* ═══════════════════════════════════════
        MOBILE RESPONSIVE — Full Overhaul
     ═══════════════════════════════════════ */
@@ -592,9 +606,7 @@
         <button onclick="closePasswordModal()" style="background: #f1f5f9; color: var(--text-main);">Cancel</button>
         <button onclick="updateAdminPassword()">Update Root Access</button>
       </div>
-    </div>
-  </div>
-
+  <div id="themeCircle" class="theme-transition-circle"></div>
   <div class="sidebar">
     <div class="sidebar-header" style="flex-direction: column; align-items: center; gap: 8px; background: white; margin: 0 15px 20px 15px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
       <img src="https://image2url.com/r2/default/images/1773668714074-7eaefdc5-c41e-4f3b-a408-a1285f72e3c4.png">
@@ -652,7 +664,14 @@
       <button class="mobile-toggle" onclick="toggleSidebar()">
         <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <h2>Administrative Dashboard</h2>
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <h2 id="currentTabTitle" style="font-size: 1.8rem;">Administrative Dashboard</h2>
+        <button id="themeToggle" class="icon-btn" title="Toggle Theme" style="background:var(--card); border:1px solid var(--border); padding:10px; border-radius:12px; cursor:pointer; color:var(--primary); transition:all 0.3s; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);">
+          <svg id="themeIcon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 5a7 7 0 100 14 7 7 0 000-14z"></path>
+          </svg>
+        </button>
+      </div>
       <div id="statusMsg" class="message"></div>
     </div>
 
@@ -924,6 +943,10 @@
   </div>
 
   <script>
+    // --- PORT CORRECTION ---
+    if (window.location.port === '5500') {
+        window.location.href = window.location.href.replace(':5500', ':5000');
+    }
     const API_URL = '/api';
     const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
     if (!user || user.type !== 'admin') window.location.href = "auth.html";
@@ -1516,7 +1539,7 @@
         if (!confirm('Confirm attendance release? This will notify all students in this section that official statistics are updated.')) return;
         
         try {
-            const res = await fetch(`${BASE_URL}/attendance/release-section`, {
+            const res = await fetch(`${API_URL}/attendance/release-section`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sectionId: sId, adminName: 'Administrator' })
@@ -1529,6 +1552,42 @@
     document.getElementById('editAttendanceDate').valueAsDate = new Date();
     document.getElementById('filterStudentSection').onchange = loadStudents;
     document.getElementById('logoutBtn').onclick = () => { localStorage.clear(); window.location.href="auth.html"; };
+
+    // --- DARK MODE LOGIC ---
+    (function() {
+      const themeToggle = document.getElementById('themeToggle');
+      const themeCircle = document.getElementById('themeCircle');
+      const themeIcon = document.getElementById('themeIcon');
+      const body = document.body;
+
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      body.setAttribute('data-theme', savedTheme);
+      updateIcon(savedTheme);
+
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        const rect = themeToggle.getBoundingClientRect();
+        themeCircle.style.top = `${rect.top + rect.height/2}px`;
+        themeCircle.style.left = `${rect.left + rect.width/2}px`;
+        themeCircle.classList.remove('animate');
+        void themeCircle.offsetWidth;
+        themeCircle.classList.add('animate');
+        setTimeout(() => {
+          body.setAttribute('data-theme', newTheme);
+          localStorage.setItem('theme', newTheme);
+          updateIcon(newTheme);
+        }, 400);
+      });
+
+      function updateIcon(theme) {
+        if (theme === 'dark') {
+          themeIcon.innerHTML = `<path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
+        } else {
+          themeIcon.innerHTML = `<path d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 5a7 7 0 100 14 7 7 0 000-14z"></path>`;
+        }
+      }
+    })();
 
     // Start
     loadBranches(); loadSections(); loadStudents(); loadUsers(); loadReg(); loadAttendanceReports();
