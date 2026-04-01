@@ -937,19 +937,23 @@
     window.logout = () => { localStorage.clear(); window.location.href = "auth.html"; };
 
     // --- DARK MODE LOGIC ---
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+
     document.addEventListener('DOMContentLoaded', () => {
       const themeToggle = document.getElementById('themeToggle');
       const themeCircle = document.getElementById('themeCircle');
       const themeIcon = document.getElementById('themeIcon');
-      const body = document.body;
+      const html = document.documentElement;
 
-      const savedTheme = localStorage.getItem('theme') || 'light';
-      body.setAttribute('data-theme', savedTheme);
-      updateIcon(savedTheme);
+      // Ensure initial icon state
+      updateIcon(html.getAttribute('data-theme'));
 
       if (themeToggle) {
         themeToggle.addEventListener('click', () => {
-          const currentTheme = body.getAttribute('data-theme');
+          const currentTheme = html.getAttribute('data-theme');
           const newTheme = currentTheme === 'light' ? 'dark' : 'light';
           const rect = themeToggle.getBoundingClientRect();
           themeCircle.style.top = `${rect.top + rect.height/2}px`;
@@ -958,7 +962,7 @@
           void themeCircle.offsetWidth;
           themeCircle.classList.add('animate');
           setTimeout(() => {
-            body.setAttribute('data-theme', newTheme);
+            html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
             updateIcon(newTheme);
           }, 400);
