@@ -1,4 +1,4 @@
-const CACHE_NAME = 'attendance-hub-v5';
+const CACHE_NAME = 'attendance-hub-v6';
 const ASSETS = [
   './auth.html',
   './index.html',
