@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const User = require('../models/User');
 const Section = require('../models/Section');
@@ -400,7 +401,12 @@ router.post('/mark-attendance-face', async (req, res) => {
 
     const sectionName = `Year ${sectionDoc.year} - ${sectionDoc.branchCode} - Sec ${sectionDoc.name}`;
     const query = { date: today, sectionId: sId };
-    if (subjectId) query.subjectId = subjectId;
+    if (subjectId) {
+      if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+        return res.status(400).json({ message: 'Invalid Subject Selection Error.' });
+      }
+      query.subjectId = subjectId;
+    }
     
     let attendance = await Attendance.findOne(query);
     if (!attendance) {

@@ -52,7 +52,8 @@ router.get('/active-sessions/:sectionId', async (req, res) => {
         const { sectionId } = req.params;
         const activeSessions = await Attendance.find({
             sectionId,
-            finalized: false
+            finalized: false,
+            subjectId: { $ne: null }
         }).populate('subjectId');
         res.json(activeSessions);
     } catch (err) { res.status(500).json({ error: err.message }); }
