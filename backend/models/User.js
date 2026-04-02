@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
   pass: { type: String, required: true },
   section: String,
   faceDescriptor: [Number], // For Face Recognition
-  isApproved: { type: Boolean, default: true }
+  isApproved: { type: Boolean, default: true },
+  registeredIP: { type: String, default: null },
+  lockedDeviceId: { type: String, default: null }
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -259,6 +259,24 @@ router.put('/users/:id/reset-face', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.put('/reset-device-lock/:type/:id', async (req, res) => {
+    try {
+        const { type, id } = req.params;
+        let model = (type === 'student') ? Student : User;
+        await model.findByIdAndUpdate(id, { registeredIP: null, lockedDeviceId: null });
+        
+        // Audit log
+        await AuditLog.create({
+            performedBy: 'Admin',
+            action: 'Device-IP Unlock',
+            targetId: id,
+            details: `Admin reset device/IP lock for account role [${type}]. Next login will capture new IP.`
+        });
+
+        res.json({ message: 'Device IP lock has been cleared.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // --- SETTINGS ---
 router.get('/settings/registration', async (req, res) => {
   try {
@@ -281,6 +299,19 @@ router.put('/settings/registration', async (req, res) => {
     );
     res.json({ registrationEnabled: setting.value });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/settings/:key', async (req, res) => {
+    try {
+        const { key } = req.params;
+        const { value } = req.body;
+        const setting = await Settings.findOneAndUpdate(
+            { key },
+            { value },
+            { upsert: true, new: true }
+        );
+        res.json(setting);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 const AuditLog = require('../models/AuditLog');

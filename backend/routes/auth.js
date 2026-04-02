@@ -183,11 +183,22 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'No such user found!' });
     if (user.pass !== pass) return res.status(400).json({ message: 'Incorrect password!' });
     
-    // Check Approval Status
-    if (user.isApproved === false) {
-      return res.status(403).json({ message: 'Your account is pending administrator approval.' });
-    }
+    // Check device/ip lock
+    const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     
+    // Admin can always bypass lock for themselves (optional, but safer)
+    if (type !== 'admin') {
+      if (!user.registeredIP) {
+        // First login - capture IP and lock it
+        user.registeredIP = currentIP;
+        await user.save();
+      } else if (user.registeredIP !== currentIP) {
+        return res.status(403).json({ 
+          message: `Security Lock: This account is restricted to device [${user.registeredIP}]. Current access from [${currentIP}] is blocked. Please contact Administrator for Device Reset.` 
+        });
+      }
+    }
+
     // Add virtual type for frontend consistency
     const userData = user.toObject();
     userData.type = type;
@@ -195,10 +206,10 @@ router.post('/login', async (req, res) => {
         userData.section = user.sectionId ? user.sectionId._id.toString() : null;
     }
 
-    res.json({ message: 'Login successful!', user: userData });
+    res.json({ message: 'Login successful!', user: userData, clientIP: currentIP });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ message: 'Login failed' });
+    res.status(500).json({ message: 'Login failed: ' + err.message });
   }
 });
 

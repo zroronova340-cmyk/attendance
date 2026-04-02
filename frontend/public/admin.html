@@ -854,7 +854,8 @@
                   <b>Square Surface Boundary:</b> Students must be within the specified square area (in meters) centered around the point picked on the map.
                 </p>
               </div>
-              <button onclick="saveGeoSettings()" style="width: 100%; padding: 20px; background: var(--secondary)">Commit Changes</button>
+              <button onclick="saveGeoSettings()" style="width: 100%; padding: 20px; background: var(--secondary); margin-bottom:10px;">Commit Section Changes</button>
+              <button onclick="saveCampusPerimeter()" style="width: 100%; padding: 12px; background: #1e293b; color:white; font-size:12px;">🛡️ Set as Global Campus Perimeter</button>
             </div>
           </div>
         </div>
@@ -1051,10 +1052,12 @@
         const tbody = document.getElementById('studentsTableBody');
         tbody.innerHTML = '';
         data.forEach(s => {
-            tbody.innerHTML += `<tr><td style="font-family:monospace">${s.reg}</td><td>${s.name || '--'}</td><td>${s.sectionId?s.sectionId.name:'NA'}</td>
+            const ipLabel = s.registeredIP ? `<br><small style="color:var(--text-muted)">IP: ${s.registeredIP}</small>` : '';
+            tbody.innerHTML += `<tr><td style="font-family:monospace">${s.reg}${ipLabel}</td><td>${s.name || '--'}</td><td>${s.sectionId?s.sectionId.name:'NA'}</td>
                 <td><span class="${s.detained?'detained-badge':'active-badge'}">${s.detained?'Detained':'Active'}</span></td>
                 <td>
                     <button class="btn-secondary" style="background:#f1f5f9; color:var(--text-main); font-size: 11px; padding: 4px 8px;" onclick="resetBio('students', '${s._id}')">Reset Bio</button>
+                    ${s.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('student', '${s._id}')">🔓 Reset Device</button>` : ''}
                     <button class="btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="deleteObj('students', '${s._id}')">Purge</button>
                 </td></tr>`;
         });
@@ -1073,10 +1076,12 @@
 
         data.forEach(u => {
             const roleColor = u.type === 'admin' ? 'var(--danger)' : (u.type === 'faculty' ? 'var(--primary)' : 'var(--secondary)');
-            tbody.innerHTML += `<tr><td><b style="color:${roleColor}">${u.type.toUpperCase()}</b></td><td>${u.adminId||u.facultyId||u.reg}</td><td>${u.mail}</td>
+            const ipLabel = u.registeredIP ? `<br><small style="color:var(--text-muted)">IP: ${u.registeredIP}</small>` : '';
+            tbody.innerHTML += `<tr><td><b style="color:${roleColor}">${u.type.toUpperCase()}</b></td><td>${u.adminId||u.facultyId||u.reg}${ipLabel}</td><td>${u.mail}</td>
                 <td>${u.faceDescriptor?.length?'✅ Enrolled':'--'}</td>
                 <td>
                     ${u.faceDescriptor?.length ? `<button class="btn-secondary" style="background:#f1f5f9; color:var(--text-main); font-size: 11px; padding: 4px 8px;" onclick="resetBio('users', '${u._id}')">Reset Bio</button>` : ''}
+                    ${u.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('${u.type}', '${u._id}')">🔓 Unlock Device</button>` : ''}
                     <button class="btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="deleteObj('users', '${u._id}')">Revoke</button>
                 </td></tr>`;
             if (u.type === 'faculty') {
@@ -1218,6 +1223,19 @@
             body: JSON.stringify({ recordId: targetId, registerNumber: reg, newStatus })
         });
         if(res.ok) loadAttendanceRecordsForEdit();
+    }
+
+    window.resetDeviceLock = async (type, id) => {
+        if(!confirm(`Reset device lock for this user? They will be able to login from a new IP/Device.`)) return;
+        try {
+            const res = await fetch(`${API_URL}/admin/reset-device-lock/${type}/${id}`, { method: 'PUT' });
+            if (res.ok) {
+                showMsg('Device lock cleared ✓');
+                if(type === 'student') loadStudents(); else loadUsers();
+            } else {
+                showMsg('Failed to reset lock', true);
+            }
+        } catch(e) { showMsg('Network error', true); }
     }
 
     window.resetBio = async (type, id) => {
@@ -1444,6 +1462,22 @@
         const sId = document.getElementById('geoSectionSelect').value;
         await fetch(`${API_URL}/admin/sections/${sId}/settings`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
         showMsg('Security configurations saved'); loadSections();
+    }
+
+    window.saveCampusPerimeter = async () => {
+        const payload = {
+            lat: parseFloat(document.getElementById('geoLat').value), 
+            lng: parseFloat(document.getElementById('geoLng').value), 
+            radius: parseInt(document.getElementById('geoRadius').value)
+        };
+        if(isNaN(payload.lat)) return showMsg("Pick a point on map first", true);
+        
+        await fetch(`${API_URL}/admin/settings/campus-boundary`, { 
+            method:'PUT', 
+            headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({ value: payload }) 
+        });
+        showMsg('🛡️ Global Campus Boundary updated!');
     }
 
     // Registration Toggle

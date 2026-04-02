@@ -711,10 +711,24 @@
 
     async function facCapture() {
       if (!facDescriptor) return showToast('No face detected', 'error');
+      
+      let lat, lng;
+      if (!facEnrollMode) {
+        document.getElementById('facHintText').textContent = 'Fetching secure location...';
+        try {
+          const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, {timeout:5000}));
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch (e) {
+            return showToast('Location access is required for verification.', 'error');
+        }
+      }
+
       const endpoint = facEnrollMode ? 'enroll-face' : 'face-login';
       const body = facEnrollMode
         ? { userId: user._id, type: user.type, descriptor: Array.from(facDescriptor) }
         : { descriptor: Array.from(facDescriptor) };
+      
       const res = await fetch(`${API_URL}/auth/${endpoint}`, {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify(body)
@@ -729,12 +743,17 @@
           document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:var(--secondary);">Enrolled ✅</span>';
           showToast('Face enrolled successfully ✓');
         } else {
-          // Verify mode — Mark daily attendance
-          fetch(`${API_URL}/attendance/faculty-daily`, {
+          // Verify mode — Mark daily attendance with geofence
+          const dailyRes = await fetch(`${API_URL}/attendance/faculty-daily`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ facultyId: user.facultyId, name: user.name, type: user.type })
+            body: JSON.stringify({ facultyId: user.facultyId, name: user.name, type: user.type, lat, lng })
           });
-          showToast('Face verified & Daily Attendance marked ✓');
+          const dailyData = await dailyRes.json();
+          if (dailyRes.ok) {
+              showToast('Verified & Daily Attendance marked ✓');
+          } else {
+              showToast(dailyData.error || 'Geofence Error: Attendance Denied.', 'error');
+          }
         }
       } else { showToast(d.message || 'Failed', 'error'); }
       closeFacCam();

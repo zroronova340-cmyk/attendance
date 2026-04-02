@@ -289,15 +289,42 @@ const FacultyAttendance = require('../models/AuditLog'); // We'll log it as an a
 
 router.post('/faculty-daily', async (req, res) => {
     try {
-        const { facultyId, name, type } = req.body;
+        const { facultyId, name, type, lat, lng } = req.body;
         const today = new Date().toISOString().split('T')[0];
 
-        // Log the daily attendance as a specific action
+        // --- GEOFENCING CHECK ---
+        const Settings = require('../models/Settings');
+        const campus = await Settings.findOne({ key: 'campus-boundary' });
+        
+        if (campus && campus.value && campus.value.lat) {
+            if (!lat || !lng) {
+                return res.status(403).json({ error: 'Location access is required for verification.' });
+            }
+
+            const { lat: centerLat, lng: centerLng, radius: radiusMeters } = campus.value;
+            const expandedRadius = (radiusMeters || 500) + 20; // 20m buffer
+
+            const latOffset = expandedRadius / 111111;
+            const lngOffset = expandedRadius / (111111 * Math.cos(centerLat * Math.PI / 180));
+
+            const isInside = (
+                lat <= (centerLat + latOffset) &&
+                lat >= (centerLat - latOffset) &&
+                lng <= (centerLng + lngOffset) &&
+                lng >= (centerLng - lngOffset)
+            );
+
+            if (!isInside) {
+                return res.status(403).json({ error: 'Attendance Denied: Outside Institution Perimeter.' });
+            }
+        }
+
+        // Log the daily attendance
         await AuditLog.create({
             performedBy: name,
             action: 'Faculty Daily Attendance',
             targetId: facultyId,
-            details: `Faculty ${name} (${facultyId}) marked daily attendance via Face ID on ${today}`
+            details: `Faculty ${name} (${facultyId}) marked daily attendance via Face ID at [${lat||'?'}, ${lng||'?'}] on ${today}`
         });
 
         res.json({ message: 'Daily attendance marked successfully!' });

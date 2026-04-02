@@ -8,7 +8,9 @@ const studentSchema = new mongoose.Schema({
   pass: { type: String },
   mail: { type: String },
   phone: { type: String },
-  faceDescriptor: [Number] // For Face Recognition
+  faceDescriptor: [Number], // For Face Recognition
+  registeredIP: { type: String, default: null }, 
+  lockedDeviceId: { type: String, default: null } 
 });
 
 module.exports = mongoose.model('Student', studentSchema);
