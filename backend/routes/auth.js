@@ -428,7 +428,7 @@ router.post('/mark-attendance-face', async (req, res) => {
 
   } catch (err) {
     console.error('Face Attendance Error:', err);
-    res.status(500).json({ message: 'Failed to mark attendance' });
+    res.status(500).json({ message: 'Failed: ' + err.message });
   }
 });
 
