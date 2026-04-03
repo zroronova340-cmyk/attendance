@@ -183,32 +183,28 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'No such user found!' });
     if (user.pass !== pass) return res.status(400).json({ message: 'Incorrect password!' });
     
-    // --- DEVICE / IP SECURITY LOCK ---
+    // --- SECURE DEVICE ID LOCK ---
     const { deviceId } = req.body;
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     if (type !== 'admin') {
-      // 1. Device ID Check (Preferred for Mobile Apps)
+      // 1. Check/Set Device ID (Primary Security)
       if (deviceId) {
         if (!user.lockedDeviceId) {
-          // First time - store the device ID
           user.lockedDeviceId = deviceId;
-          if (!user.registeredIP) user.registeredIP = currentIP;
+          user.registeredIP = currentIP; // Update IP for reference
           await user.save();
         } else if (user.lockedDeviceId !== deviceId) {
           return res.status(403).json({ 
-            message: `Security Lock: This account is restricted to another device. Please contact Administrator to reset your device access.` 
+            message: `Security Lock: This account is locked to another device. Please contact Admin to unlock your device access.` 
           });
         }
       } 
-      // 2. IP Check Fallback (If no deviceId sent)
-      else if (!user.registeredIP) {
-        user.registeredIP = currentIP;
-        await user.save();
-      } else if (user.registeredIP !== currentIP) {
-        return res.status(403).json({ 
-          message: `Security Lock: This account is registered to another device/network. Please contact Admin for Reset.` 
-        });
+      // 2. IP Tracking (Reference Only - No Blocking)
+      // We removed IP blocking because mobile IPs change frequently.
+      if (!user.registeredIP || user.registeredIP !== currentIP) {
+          user.registeredIP = currentIP;
+          await user.save();
       }
     }
 
