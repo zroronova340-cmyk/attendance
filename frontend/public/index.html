@@ -604,8 +604,15 @@
     if (window.location.port === '5500') {
         window.location.href = window.location.href.replace(':5500', ':5000');
     }
-    // Always redirect to auth.html (login page)
-    window.location.href = "auth.html";
+    // --- AUTHENTICATION & PERSISTENCE ---
+    const localUser = localStorage.getItem('currentUser');
+    const sessUser = sessionStorage.getItem('currentUser');
+    const savedUser = localUser || sessUser;
+
+    if (!savedUser) {
+        window.location.href = "auth.html";
+    }
+    const user = JSON.parse(savedUser);
     const API_URL = '/api';
 
     const isCr = user.type === 'cr';
@@ -799,7 +806,7 @@
       else { showToast("Failed to update password", 'error'); }
     };
 
-    window.logout = () => { localStorage.clear(); window.location.href = "auth.html"; };
+    window.logout = () => { localStorage.clear(); sessionStorage.clear(); window.location.href = "auth.html"; };
 
     // --- DARK MODE LOGIC ---
     (function() {

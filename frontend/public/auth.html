@@ -574,7 +574,13 @@
                     <label>Secure Access Key</label>
                     <input type="password" id="loginPass" placeholder="••••••••" required autocomplete="current-password">
                 </div>
-                <a href="#" class="forgot-link" id="forgotLink">Forgot Password?</a>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; text-transform:none;">
+                        <input type="checkbox" id="rememberMe" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+                        Remember this device
+                    </label>
+                    <a href="#" class="forgot-link" id="forgotLink" style="margin: 0;">Forgot Key?</a>
+                </div>
                 <button type="submit" class="submit-btn" id="loginSubmitBtn">
                     <span class="btn-text">Continue to Dashboard</span>
                     <span class="btn-spinner"><span class="spinner-ring"></span>Authenticating...</span>
@@ -621,18 +627,22 @@
         }
 
         // --- INSTAGRAM-LIKE AUTO LOGIN ---
-        const savedUser = localStorage.getItem('currentUser');
+        // --- SESSION PERSISTENCE (REMEMBER ME) ---
+        const sessUser = sessionStorage.getItem('currentUser');
+        const localUser = localStorage.getItem('currentUser');
+        const savedUser = sessUser || localUser;
+
         if (savedUser) {
             try {
                 const user = JSON.parse(savedUser);
-                // Auto-redirect to dashboard based on user type
                 if (user.type === 'admin') window.location.href = 'admin.html';
-                else if (user.type === 'student') window.location.href = 'student-dashboard.html';
-                else if (user.type === 'cr') window.location.href = 'student-dashboard.html';
+                else if (user.type === 'student' || user.type === 'cr') window.location.href = 'student-dashboard.html';
                 else if (user.type === 'faculty') window.location.href = 'faculty-dashboard.html';
                 else window.location.href = 'index.html';
             } catch (e) {
+                console.error("Session corrupted. Clearing…", e);
                 localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('currentUser');
             }
         }
 
@@ -721,17 +731,29 @@
             el.className = `msg ${type}`;
         }
 
+        // --- SECURE DEVICE ID FINGERPRINT ---
+        function getDeviceId() {
+            let id = localStorage.getItem('attendanceHubDeviceId');
+            if (!id) {
+                // Generate a long random unique string
+                id = 'dev_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36);
+                localStorage.setItem('attendanceHubDeviceId', id);
+            }
+            return id;
+        }
+
         loginForm.onsubmit = async (e) => {
             e.preventDefault();
             const btn   = document.getElementById('loginSubmitBtn');
             const type  = loginType.value;
             const idVal = document.getElementById('loginId').value.trim().toUpperCase();
             const pass  = document.getElementById('loginPass').value;
+            const deviceId = getDeviceId(); // Unique lock code
 
             btn.classList.add('loading');
             btn.disabled = true;
 
-            const payload = { type, pass };
+            const payload = { type, pass, deviceId };
             if (['cr', 'student'].includes(type)) payload.reg = idVal;
             else if (type === 'faculty') payload.facultyId = idVal;
             else payload.adminId = idVal;
@@ -741,7 +763,15 @@
                 const data = await res.json();
                 if (res.ok) {
                     showMsg('loginMsg', "Authorized. Opening portal…", 'success');
-                    localStorage.setItem('currentUser', JSON.stringify(data.user));
+                    
+                    // --- PERSISTENCE CHOICE ---
+                    const remember = document.getElementById('rememberMe').checked;
+                    if (remember) {
+                        localStorage.setItem('currentUser', JSON.stringify(data.user));
+                    } else {
+                        sessionStorage.setItem('currentUser', JSON.stringify(data.user));
+                    }
+
                     setTimeout(() => {
                         if (data.user.type === 'admin')   window.location.href = 'admin.html';
                         else if (data.user.type === 'student') window.location.href = 'student-dashboard.html';

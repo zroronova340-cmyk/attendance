@@ -571,7 +571,9 @@
     if (window.location.port === '5500') {
         window.location.href = window.location.href.replace(':5500', ':5000');
     }
-    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const localUser = localStorage.getItem('currentUser');
+    const sessUser = sessionStorage.getItem('currentUser');
+    const user = JSON.parse(localUser || sessUser || 'null');
     if (!user) window.location.href = "auth.html";
     const API_URL = '/api';
 
@@ -969,7 +971,7 @@
       else { showToast("Current key is incorrect", 'error'); }
     };
 
-    window.logout = () => { localStorage.clear(); window.location.href = "auth.html"; };
+    window.logout = () => { localStorage.clear(); sessionStorage.clear(); window.location.href = "auth.html"; };
 
     // --- DARK MODE LOGIC ---
     (function() {

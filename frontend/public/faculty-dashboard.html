@@ -371,7 +371,9 @@
         window.location.href = window.location.href.replace(':5500', ':5000');
     }
     const API_URL = '/api';
-    const user = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const localUser = localStorage.getItem('currentUser');
+    const sessUser = sessionStorage.getItem('currentUser');
+    const user = JSON.parse(localUser || sessUser || 'null');
     if (!user || user.type !== 'faculty') { window.location.href = 'auth.html'; }
 
     const nameText = user.name || user.facultyId;
@@ -780,7 +782,7 @@
       closeFacCam();
     }
 
-    window.logout = () => { localStorage.clear(); window.location.href = 'auth.html'; };
+    window.logout = () => { localStorage.clear(); sessionStorage.clear(); window.location.href = 'auth.html'; };
     init();
 
     // --- DARK MODE LOGIC ---
