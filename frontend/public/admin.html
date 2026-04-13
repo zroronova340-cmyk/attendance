@@ -1141,7 +1141,7 @@
                     <td><span class="${s.detained ? 'detained-badge' : 'active-badge'}">${s.detained ? 'Detained' : 'Active'}</span></td>
                     <td>
                         <button class="btn-secondary" style="background:#f1f5f9; color:var(--text-main); font-size: 11px; padding: 4px 8px;" onclick="resetBio('students', '${s._id}')">Reset Bio</button>
-                        ${s.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('student', '${s._id}')">🔓 Reset Device</button>` : ''}
+                        ${s.lockedDeviceId || s.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('student', '${s._id}')">🔓 Reset Device</button>` : ''}
                         <button class="btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="deleteObj('students', '${s._id}')">Purge</button>
                     </td>
                 </tr>`;
@@ -1169,7 +1169,7 @@
                 <td>${u.faceDescriptor?.length?'✅ Enrolled':'--'}</td>
                 <td>
                     ${u.faceDescriptor?.length ? `<button class="btn-secondary" style="background:#f1f5f9; color:var(--text-main); font-size: 11px; padding: 4px 8px;" onclick="resetBio('users', '${u._id}')">Reset Bio</button>` : ''}
-                    ${u.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('${u.type}', '${u._id}')">🔓 Unlock Device</button>` : ''}
+                    ${u.lockedDeviceId || u.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('${u.type}', '${u._id}')">🔓 Unlock Device</button>` : ''}
                     <button class="btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="deleteObj('users', '${u._id}')">Revoke</button>
                 </td></tr>`;
             if (u.type === 'faculty') {

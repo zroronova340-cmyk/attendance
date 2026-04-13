@@ -1077,7 +1077,14 @@
       else { showToast("Current key is incorrect", 'error'); }
     };
 
-    window.logout = () => { localStorage.clear(); sessionStorage.clear(); window.location.href = "auth.html"; };
+    window.logout = () => { 
+      // Keep device ID for re-login, clear everything else
+      const deviceId = localStorage.getItem('attendanceHubDeviceId');
+      localStorage.clear();
+      if (deviceId) localStorage.setItem('attendanceHubDeviceId', deviceId);
+      sessionStorage.clear(); 
+      window.location.href = "auth.html"; 
+    };
 
     // ── IRIS SCAN MODAL (twin disambiguation) ──
     let irisStream = null;
