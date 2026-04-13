@@ -982,56 +982,7 @@
         </div>
       </div>
 
-      <!-- ── Card 2: Iris Scan Enrollment (Admin captures for twin) ── -->
-      <div class="admin-card" style="border-left:5px solid #0ea5e9;">
-        <h3 style="color:#0369a1;">
-          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
-          Iris Scan Enrollment
-        </h3>
-        <p style="color:var(--text-muted);margin-bottom:20px;">Enroll the iris biometric of a registered twin student. This is the secondary verification layer used when face scans are ambiguous (both twins look identical).</p>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
-          <!-- Controls -->
-          <div>
-            <div style="margin-bottom:16px;">
-              <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:6px;">TWIN STUDENT ROLL NUMBER</label>
-              <input type="text" id="irisStudentReg" placeholder="Roll No. of twin (e.g. 23KD1A0501)"
-                     style="width:100%;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <button id="irisStartBtn" onclick="startIrisCapture()" style="flex:1;padding:14px;background:linear-gradient(135deg,#0369a1,#0ea5e9);">👁️ Start Iris Capture</button>
-              <button id="irisCancelBtn" onclick="cancelIris()" style="display:none;flex:1;background:#f1f5f9;color:var(--text-main);">✖ Cancel</button>
-            </div>
-            <div style="margin-top:16px;padding:14px;border-radius:10px;background:#f0f9ff;border:1px solid #bae6fd;min-height:48px;">
-              <div id="irisEnrollStatus" style="font-weight:700;color:#0369a1;"></div>
-            </div>
-            <div style="margin-top:12px;padding:12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;font-size:0.82rem;color:#92400e;">
-              <strong>⚠️ How Iris Scan Works:</strong><br>
-              The system captures the face around the eye region and uses its biometric descriptor as the iris signature. Instruct the student to look directly at the camera.
-            </div>
-          </div>
-
-          <!-- Camera feed + iris ring -->
-          <div style="position:relative;border-radius:16px;overflow:hidden;background:#0f172a;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;">
-            <video id="irisVideo" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;"></video>
-            <canvas id="irisCanvas" style="display:none;"></canvas>
-
-            <!-- Animated iris overlay -->
-            <div id="irisOverlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:2;">
-              <div id="irisRing" style="width:150px;height:150px;border-radius:50%;border:3px solid rgba(14,165,233,0);box-shadow:0 0 0 rgba(14,165,233,0);transition:all 0.5s;display:flex;align-items:center;justify-content:center;">
-                <div style="width:46px;height:46px;border-radius:50%;border:2px solid rgba(14,165,233,0);background:transparent;transition:all 0.5s;"></div>
-              </div>
-            </div>
-
-            <!-- Placeholder -->
-            <p id="irisPlaceholder" style="color:rgba(255,255,255,0.45);font-size:0.82rem;text-align:center;padding:20px;z-index:1;position:relative;">
-              👁️ Camera inactive<br><span style="font-size:0.75rem;">Click "Start Iris Capture" to begin</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Card 3: Registered Twin Pairs Table ── -->
+      <!-- ── Card 2: Registered Twin Pairs Table ── -->
       <div class="admin-card">
         <h3 style="justify-content:space-between;">
           <span>

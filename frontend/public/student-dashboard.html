@@ -534,6 +534,17 @@
         Biometric record: <span style="color: var(--accent);">Pending registration</span>
       </p>
 
+      <!-- Twin Iris Scan Button (only for twins) -->
+      <div id="irisScanSection" style="display:none; margin-top: 12px;">
+        <button class="btn-face" id="irisEnrollBtn" style="background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; width: 100%; padding: 12px;">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
+          <span style="margin-left: 8px;">Enroll Iris (Twin Only)</span>
+        </button>
+        <p style="font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 6px; text-align: center;">
+          Iris scan required for twin disambiguation
+        </p>
+      </div>
+
       <!-- Inline Camera -->
       <div id="inlineCamContainer" class="cam-box-inline">
         <div class="hint-text-inline" id="hintText">System Initializing...</div>
@@ -813,6 +824,8 @@
       const faceStatusEl = document.getElementById('faceStatus');
       const enrollBtn = document.getElementById('enrollBtn');
       const markBtn = document.getElementById('markAttendanceBtn');
+      const irisSection = document.getElementById('irisScanSection');
+      const irisEnrollBtn = document.getElementById('irisEnrollBtn');
 
       if (hasBio) {
         if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: var(--secondary);">Verified ✅</span>`;
@@ -822,6 +835,13 @@
         if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: var(--accent);">Pending registration</span>`;
         if(enrollBtn) enrollBtn.style.display = 'flex';
         if (document.getElementById('profileCard')) document.getElementById('profileCard').style.display = 'block';
+      }
+
+      // Show iris button only for twins
+      if (user.isTwin && user.twinReg) {
+        if (irisSection) irisSection.style.display = 'block';
+      } else {
+        if (irisSection) irisSection.style.display = 'none';
       }
     }
     updateFaceStatus();
@@ -924,6 +944,19 @@
 
     document.getElementById('enrollBtn').onclick = () => { isEnrollmentMode = true; openCam(true); };
     
+    // Iris enrollment for twins
+    document.getElementById('irisEnrollBtn').onclick = async () => {
+      const user = JSON.parse(localStorage.getItem('currentUser'));
+      if (!user || !user.isTwin) {
+        showToast('Only registered twins can enroll iris', 'error');
+        return;
+      }
+      
+      showToast('Opening camera for iris enrollment...');
+      isEnrollmentMode = 'iris';
+      openCam(true);
+    };
+    
     // Day Attendance Action
     document.getElementById('dailyMarkBtn').onclick = () => {
       isEnrollmentMode = false;
@@ -967,6 +1000,28 @@
         if (e.code === 1) showToast('Location denied - Please enable location in browser settings', 'error');
         else if (e.code === 2) showToast('Location unavailable - Check GPS or network', 'error');
         else if (e.code === 3) showToast('Location timeout - Try again', 'error');
+      }
+
+      // Handle iris enrollment mode for twins
+      if (isEnrollmentMode === 'iris') {
+        const res = await fetch(`${API_URL}/auth/enroll-iris`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: user._id, 
+            type: user.type, 
+            irisDescriptor: Array.from(currentDescriptor)
+          })
+        });
+        const d = await res.json();
+        if (res.ok) {
+          showToast('Iris enrolled successfully!', 'success');
+          user.irisDescriptor = Array.from(currentDescriptor);
+          localStorage.setItem('currentUser', JSON.stringify(user));
+          closeCam();
+        } else {
+          showToast(d.message || 'Iris enrollment failed', 'error');
+        }
+        return;
       }
 
       const res = await fetch(`${API_URL}/auth/${isEnrollmentMode ? 'enroll-face' : 'face-login'}`, {
