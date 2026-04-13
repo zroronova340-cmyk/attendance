@@ -183,36 +183,35 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'No such user found!' });
     if (user.pass !== pass) return res.status(400).json({ message: 'Incorrect password!' });
     
-    // --- SECURE DEVICE ID LOCK ---
+    // --- SECURE DEVICE ID LOCK (DISABLED FOR TESTING) ---
     const { deviceId } = req.body;
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    console.log(`[LOGIN] Device Lock Check - User: ${reg || facultyId || adminId}, Type: ${type}, LockedDeviceId: ${user.lockedDeviceId}, ReceivedDeviceId: ${deviceId}`);
-
+    
+    // Device lock is temporarily disabled for debugging
+    // TODO: Re-enable after fixing the issue
+    /*
     if (type !== 'admin') {
-      // 1. Check/Set Device ID (Primary Security)
       if (deviceId) {
         if (!user.lockedDeviceId) {
-          // FIRST LOGIN - Lock the device
-          console.log('[LOGIN] First time device lock - saving new deviceId');
           user.lockedDeviceId = deviceId;
           user.registeredIP = currentIP;
           await user.save();
         } else if (user.lockedDeviceId !== deviceId) {
-          // DEVICE MISMATCH - Reject login
-          console.log('[LOGIN] DEVICE MISMATCH - Rejecting login');
           return res.status(403).json({ 
             message: `Security Lock: This account is locked to another device. Please contact Admin to unlock your device access.` 
           });
-        } else {
-          console.log('[LOGIN] Device matched - allowing login');
         }
       } 
-      // 2. IP Tracking (Reference Only - No Blocking)
       if (!user.registeredIP || user.registeredIP !== currentIP) {
           user.registeredIP = currentIP;
           await user.save();
       }
     }
+    */
+   
+   // Just track IP for reference (no lock)
+   user.registeredIP = currentIP;
+   await user.save();
 
     // Add virtual type for frontend consistency
     const userData = user.toObject();
