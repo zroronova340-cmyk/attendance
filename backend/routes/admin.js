@@ -277,7 +277,13 @@ router.put('/reset-device-lock/:type/:id', async (req, res) => {
     try {
         const { type, id } = req.params;
         let model = (type === 'student') ? Student : User;
+        const old = await model.findById(id);
+        console.log(`[RESET] Before: lockedDeviceId = ${old?.lockedDeviceId}, registeredIP = ${old?.registeredIP}`);
+        
         await model.findByIdAndUpdate(id, { registeredIP: null, lockedDeviceId: null });
+        
+        const updated = await model.findById(id);
+        console.log(`[RESET] After: lockedDeviceId = ${updated?.lockedDeviceId}, registeredIP = ${updated?.registeredIP}`);
         
         // Audit log
         await AuditLog.create({
