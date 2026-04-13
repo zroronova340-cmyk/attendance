@@ -81,9 +81,15 @@ router.put('/sections/:id/crs', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.delete('/sections/all', async (req, res) => {
+  try {
+    await Section.deleteMany({});
+    res.json({ message: 'All sections deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/sections/:id', async (req, res) => {
   try {
-    // Delete students associated with this section? Or just delete section.
     await Section.findByIdAndDelete(req.params.id);
     res.json({ message: 'Section deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -192,6 +198,13 @@ router.post('/students', async (req, res) => {
       inserted.push(student);
     }
     res.json({ message: 'Students processed successfully', count: inserted.length, students: inserted });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/students/all', async (req, res) => {
+  try {
+    await Student.deleteMany({});
+    res.json({ message: 'All students deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -356,6 +369,152 @@ router.get('/forecasting', async (req, res) => {
 
         res.json(forecasts.sort((a,b) => a.rate - b.rate));
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// --- TWIN MANAGEMENT ---
+router.put('/students/:id/twin', async (req, res) => {
+  try {
+    const { isTwin, twinReg } = req.body;
+    const student = await Student.findById(req.params.id);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    if (isTwin && twinReg) {
+      const twinStudent = await Student.findOne({ reg: twinReg.toUpperCase() });
+      if (!twinStudent) return res.status(404).json({ message: 'Twin roll number not found' });
+      if (twinStudent._id.toString() === student._id.toString()) {
+        return res.status(400).json({ message: 'Cannot set self as twin' });
+      }
+      student.isTwin = true;
+      student.twinReg = twinReg.toUpperCase();
+      twinStudent.isTwin = true;
+      twinStudent.twinReg = student.reg;
+      await twinStudent.save();
+    } else {
+      if (student.twinReg) {
+        const oldTwin = await Student.findOne({ reg: student.twinReg });
+        if (oldTwin) {
+          oldTwin.isTwin = false;
+          oldTwin.twinReg = null;
+          await oldTwin.save();
+        }
+      }
+      student.isTwin = false;
+      student.twinReg = null;
+    }
+
+    student.irisDescriptor = [];
+    await student.save();
+
+    await AuditLog.create({
+      performedBy: 'Admin',
+      action: isTwin ? 'Twin Registration' : 'Twin Removal',
+      targetId: student.reg,
+      details: isTwin ? `Registered as twin with ${twinReg}` : `Removed twin status`
+    });
+
+    res.json({ message: isTwin ? 'Twin registered successfully' : 'Twin status removed', student });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/twins', async (req, res) => {
+  try {
+    const twins = await Student.find({ isTwin: true });
+    res.json(twins);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  TWIN MANAGEMENT (Admin Only)
+// ══════════════════════════════════════════════════════════════
+
+// Register a twin pair by their roll numbers
+router.post('/twins/register', async (req, res) => {
+  try {
+    const { reg1, reg2 } = req.body;
+    if (!reg1 || !reg2) return res.status(400).json({ error: 'Both roll numbers are required.' });
+    if (reg1.toUpperCase() === reg2.toUpperCase()) return res.status(400).json({ error: 'Both roll numbers cannot be the same.' });
+
+    const s1 = await Student.findOne({ reg: reg1.toUpperCase() });
+    const s2 = await Student.findOne({ reg: reg2.toUpperCase() });
+
+    if (!s1) return res.status(404).json({ error: `Student ${reg1} not found.` });
+    if (!s2) return res.status(404).json({ error: `Student ${reg2} not found.` });
+
+    // Check if either is already in another twin pair
+    if (s1.isTwin && s1.twinReg && s1.twinReg !== reg2.toUpperCase()) {
+      return res.status(409).json({ error: `${reg1} is already registered as a twin with ${s1.twinReg}.` });
+    }
+    if (s2.isTwin && s2.twinReg && s2.twinReg !== reg1.toUpperCase()) {
+      return res.status(409).json({ error: `${reg2} is already registered as a twin with ${s2.twinReg}.` });
+    }
+
+    await Student.findByIdAndUpdate(s1._id, { isTwin: true, twinReg: reg2.toUpperCase() });
+    await Student.findByIdAndUpdate(s2._id, { isTwin: true, twinReg: reg1.toUpperCase() });
+
+    await AuditLog.create({
+      performedBy: 'Admin',
+      action: 'Twin Registration',
+      targetId: `${reg1} & ${reg2}`,
+      details: `Registered twin pair: ${reg1} <-> ${reg2}`
+    });
+
+    res.json({ message: `Twin pair registered: ${reg1.toUpperCase()} <-> ${reg2.toUpperCase()}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Unregister a twin pair
+router.post('/twins/unregister', async (req, res) => {
+  try {
+    const { reg } = req.body;
+    if (!reg) return res.status(400).json({ error: 'Roll number is required.' });
+
+    const student = await Student.findOne({ reg: reg.toUpperCase() });
+    if (!student) return res.status(404).json({ error: 'Student not found.' });
+
+    const twinReg = student.twinReg;
+
+    await Student.findByIdAndUpdate(student._id, { isTwin: false, twinReg: null, irisDescriptor: [] });
+
+    if (twinReg) {
+      const twin = await Student.findOne({ reg: twinReg });
+      if (twin) {
+        await Student.findByIdAndUpdate(twin._id, { isTwin: false, twinReg: null, irisDescriptor: [] });
+      }
+    }
+
+    await AuditLog.create({
+      performedBy: 'Admin',
+      action: 'Twin Unregistration',
+      targetId: reg,
+      details: `Removed twin link for ${reg}${twinReg ? ` and ${twinReg}` : ''}. Iris data cleared.`
+    });
+
+    res.json({ message: `Twin registration removed for ${reg.toUpperCase()}${twinReg ? ` and ${twinReg}` : ''}.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all registered twin pairs
+router.get('/twins', async (req, res) => {
+  try {
+    const twins = await Student.find({ isTwin: true }).select('reg name twinReg isTwin irisDescriptor sectionId').populate('sectionId');
+    res.json(twins);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reset iris data for a student (Admin)
+router.put('/students/:id/reset-iris', async (req, res) => {
+  try {
+    await Student.findByIdAndUpdate(req.params.id, { irisDescriptor: [] });
+    res.json({ message: 'Iris biometric reset successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

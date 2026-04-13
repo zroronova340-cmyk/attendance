@@ -566,6 +566,41 @@
     </div>
   </div>
 
+  <!-- IRIS SCAN MODAL (for twin disambiguation) -->
+  <div id="irisModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(10px); z-index:3000; align-items:center; justify-content:center; flex-direction:column; padding:24px;">
+    <div style="background:linear-gradient(145deg,#001a33,#002a50); border-radius:24px; padding:28px; width:100%; max-width:370px; color:white; text-align:center; box-shadow:0 30px 70px rgba(0,0,0,0.5);">
+      <div style="font-size:2rem; margin-bottom:8px;">👁️</div>
+      <h3 style="font-weight:900; font-size:1.1rem; margin-bottom:6px; color:#ffd740;">Iris Scan Required</h3>
+      <p style="font-size:0.8rem; color:rgba(255,255,255,0.6); margin-bottom:20px;">Your face matched a registered twin pair. Please look directly at the camera for iris verification.</p>
+
+      <!-- Iris camera box -->
+      <div style="position:relative; border-radius:16px; overflow:hidden; background:#000; aspect-ratio:4/3; margin-bottom:16px;">
+        <video id="irisWebcam" autoplay muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>
+        <!-- Iris ring overlay -->
+        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+          <div id="irisRingModal" style="width:130px; height:130px; border-radius:50%; border:3px solid rgba(14,165,233,0.8); box-shadow:0 0 30px rgba(14,165,233,0.5); display:flex; align-items:center; justify-content:center; animation:irisGlow 1.5s ease-in-out infinite;">
+            <div style="width:38px; height:38px; border-radius:50%; border:2px solid rgba(14,165,233,0.7); background:rgba(14,165,233,0.1);"></div>
+          </div>
+        </div>
+        <div id="irisHint" style="position:absolute; top:10px; left:0; width:100%; text-align:center; color:#ffd740; font-weight:800; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; text-shadow:0 1px 4px rgba(0,0,0,0.8);">Align eye with ring...</div>
+      </div>
+
+      <div id="irisModalStatus" style="font-size:0.82rem; color:rgba(255,255,255,0.7); margin-bottom:16px; min-height:20px;"></div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button id="irисCaptureBtn" onclick="captureIris()" style="padding:13px; border-radius:11px; background:linear-gradient(135deg,#ffd740,#ffb703); color:#001a33; font-weight:800; border:none; cursor:pointer;">Scan Iris</button>
+        <button onclick="cancelIrisModal()" style="padding:13px; border-radius:11px; background:rgba(255,255,255,0.1); color:white; font-weight:700; border:1px solid rgba(255,255,255,0.2); cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    @keyframes irisGlow {
+      0%,100% { box-shadow: 0 0 20px rgba(14,165,233,0.5); }
+      50%      { box-shadow: 0 0 40px rgba(14,165,233,0.9); }
+    }
+  </style>
+
   <script>
     // --- PORT CORRECTION ---
     if (window.location.port === '5500') {
@@ -934,7 +969,7 @@
         else if (e.code === 3) showToast('Location timeout - Try again', 'error');
       }
 
-      const res = await fetch(`${API_URL}/auth/${isEnrollmentMode?'enroll-face':'mark-attendance-face'}`, {
+      const res = await fetch(`${API_URL}/auth/${isEnrollmentMode ? 'enroll-face' : 'face-login'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             userId: user._id, 
@@ -945,9 +980,25 @@
             subjectId: window.targetSubjectId || null 
         })
       });
+
+      // ── TWIN AMBIGUITY: HTTP 428 means iris scan required ──
+      if (res.status === 428) {
+        const d = await res.json();
+        closeCam();
+        showToast('👁️ Twin detected — iris scan required for identity confirmation', 'error');
+        window._pendingTwinCandidates = d.candidates; // [{id, reg, name}, ...]
+        window._pendingTwinLat = lat;
+        window._pendingTwinLng = lng;
+        window._pendingTwinSubject = window.targetSubjectId || null;
+        // Show iris modal
+        showIrisModal();
+        return;
+      }
+
       if (res.ok) {
+        const d = await res.json();
         if (isEnrollmentMode) { user.faceDescriptor = Array.from(currentDescriptor); localStorage.setItem('currentUser', JSON.stringify(user)); updateFaceStatus(); }
-        showToast("Operation Successful ✓");
+        showToast(d.message || "Operation Successful ✓");
       } else {
         const d = await res.json();
         showToast(d.message || "Failed", 'error');
@@ -972,6 +1023,89 @@
     };
 
     window.logout = () => { localStorage.clear(); sessionStorage.clear(); window.location.href = "auth.html"; };
+
+    // ── IRIS SCAN MODAL (twin disambiguation) ──
+    let irisStream = null;
+
+    function showIrisModal() {
+      const modal = document.getElementById('irisModal');
+      modal.style.display = 'flex';
+      startIrisCamera();
+    }
+
+    function cancelIrisModal() {
+      stopIrisCamera();
+      document.getElementById('irisModal').style.display = 'none';
+      showToast('Iris scan cancelled', 'error');
+    }
+
+    async function startIrisCamera() {
+      setIrisModalStatus('Starting camera...');
+      try {
+        irisStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+        document.getElementById('irisWebcam').srcObject = irisStream;
+        setIrisModalStatus('👁️ Look directly at the camera, then tap Scan Iris');
+      } catch(err) {
+        setIrisModalStatus('Camera error: ' + err.message);
+      }
+    }
+
+    function stopIrisCamera() {
+      if (irisStream) { irisStream.getTracks().forEach(t => t.stop()); irisStream = null; }
+      document.getElementById('irisWebcam').srcObject = null;
+    }
+
+    async function captureIris() {
+      setIrisModalStatus('⏳ Scanning iris...');
+      const video = document.getElementById('irisWebcam');
+      try {
+        const detection = await faceapi
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+        if (!detection) {
+          setIrisModalStatus('❌ No face detected. Ensure good lighting and look at camera.');
+          return;
+        }
+        const descriptor = Array.from(detection.descriptor);
+        setIrisModalStatus('🔍 Verifying identity...');
+        // Call iris-identify
+        const res = await fetch(`${API_URL}/auth/iris-identify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            descriptor,
+            candidates: window._pendingTwinCandidates
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) { setIrisModalStatus('❌ ' + data.message); return; }
+
+        // Mark attendance for identified twin
+        setIrisModalStatus('✅ Identity confirmed! Marking attendance...');
+        const markRes = await fetch(`${API_URL}/auth/mark-attendance-iris`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: data.student._id,
+            type: 'student',
+            latitude: window._pendingTwinLat,
+            longitude: window._pendingTwinLng,
+            subjectId: window._pendingTwinSubject
+          })
+        });
+        const markData = await markRes.json();
+        stopIrisCamera();
+        document.getElementById('irisModal').style.display = 'none';
+        showToast(markData.message || `Attendance marked for ${data.student.name}`, markRes.ok ? 'success' : 'error');
+      } catch(err) {
+        setIrisModalStatus('❌ Error: ' + err.message);
+      }
+    }
+
+    function setIrisModalStatus(msg) {
+      document.getElementById('irisModalStatus').textContent = msg;
+    }
 
     // --- DARK MODE LOGIC ---
     (function() {

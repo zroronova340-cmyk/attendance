@@ -34,9 +34,15 @@ app.use(express.json());
 const publicPath = path.join(__dirname, '../frontend/public');
 app.use(express.static(publicPath));
 
-app.get('/', (req, res) => {
-  res.send('Backend is running!');
-});
+// Explicit routes for HTML files
+app.get('/student-dashboard.html', (req, res) => res.sendFile(path.join(publicPath, 'student-dashboard.html')));
+app.get('/faculty-dashboard.html', (req, res) => res.sendFile(path.join(publicPath, 'faculty-dashboard.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(publicPath, 'admin.html')));
+app.get('/auth.html', (req, res) => res.sendFile(path.join(publicPath, 'auth.html')));
+app.get('/summary.html', (req, res) => res.sendFile(path.join(publicPath, 'summary.html')));
+
+app.get('/', (req, res) => res.redirect('/auth.html'));
+
 
 app.get('/api/', (req, res) => {
   res.send('API root. Use /api/auth or /api/attendance.');
@@ -50,40 +56,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Proxy OCR requests to HuggingFace
-const API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-large-printed";
-const API_TOKEN = process.env.HF_API_TOKEN;
-
-app.post('/api/ocr', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No image file provided" });
-    }
-
-    const base64Image = req.file.buffer.toString('base64');
-    const imageData = `data:${req.file.mimetype};base64,${base64Image}`;
-
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ inputs: imageData }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OCR API Error:", errorText);
-      return res.status(response.status).json({ error: "OCR API error", details: errorText });
-    }
-
-    const result = await response.json();
-    res.json(result);
-  } catch (err) {
-    console.error("OCR Error:", err);
-    res.status(500).json({ error: "OCR failed", details: err.message });
-  }
+// OCR endpoint - removed (was using external API that doesn't support images)
+// This returns 404 for any OCR-related requests
+app.all('/api/ocr', (req, res) => {
+  res.status(404).json({ error: "OCR feature has been removed" });
 });
 
 if (require.main === module) {

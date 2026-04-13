@@ -271,8 +271,18 @@ router.post('/enroll-face', async (req, res) => {
     for (let u of [...allUsers, ...allStudents]) {
       if (u._id.toString() !== userId && u.faceDescriptor && u.faceDescriptor.length === 128) {
         const dist = calculateEuclideanDistance(descriptor, u.faceDescriptor);
-        if (dist < 0.5) { // Any match under 0.6 is technically a match; 0.5 is very strict for duplicates.
-          return res.status(409).json({ message: 'Security Alert: This biometric profile is already assigned to another account.' });
+        if (dist < 0.5) {
+          // ── TWIN EXCEPTION ──
+          // If the current user is a registered twin AND the matching user is their twin pair, allow it.
+          const isTwinPair =
+            user.isTwin &&
+            user.twinReg &&
+            (u.reg === user.twinReg || u.twinReg === user.reg);
+
+          if (!isTwinPair) {
+            return res.status(409).json({ message: 'Security Alert: This biometric profile is already assigned to another account.' });
+          }
+          // Twin pair allowed — no block
         }
       }
     }
@@ -450,6 +460,18 @@ router.post('/mark-attendance-face', async (req, res) => {
     }
 
     await attendance.save();
+
+    // Twin Face Duplication: Mark attendance for twin sibling if applicable
+    if (user.isTwin && user.twinReg) {
+      const twinRecordIndex = attendance.records.findIndex(r => r.registerNumber === user.twinReg);
+      if (twinRecordIndex === -1) {
+        attendance.records.push({ registerNumber: user.twinReg, status: 'present', lat: latitude, lng: longitude, viaTwin: regNum });
+        await attendance.save();
+        res.json({ message: 'Self-Attendance marked for both! (Twin duplication applied)' });
+        return;
+      }
+    }
+
     res.json({ message: 'Self-Attendance marked successfully!' });
 
   } catch (err) {
@@ -504,10 +526,151 @@ router.post('/face-login', async (req, res) => {
       return res.status(401).json({ message: 'Face not recognized.' });
     }
 
+    // ── TWIN AMBIGUITY CHECK ──
+    // If the best match is a twin, check if their twin sibling is ALSO a close match.
+    // If so, the system cannot disambiguate by face alone → require iris scan.
+    if (bestMatch.isTwin && bestMatch.twinReg) {
+      const twinUser = await Student.findOne({ reg: bestMatch.twinReg });
+      if (twinUser && twinUser.faceDescriptor && twinUser.faceDescriptor.length === 128) {
+        const twinDist = calculateEuclideanDistance(descriptor, twinUser.faceDescriptor);
+        if (twinDist < 0.55) {
+          // Both twins are plausible matches — cannot identify by face alone
+          return res.status(428).json({
+            message: 'Twin Detected: Face scan is ambiguous. Please complete Iris Scan for identification.',
+            requiresIris: true,
+            candidates: [
+              { reg: bestMatch.reg, name: bestMatch.name, _id: bestMatch._id },
+              { reg: twinUser.reg, name: twinUser.name, _id: twinUser._id }
+            ]
+          });
+        }
+      }
+    }
+
     res.json({ message: 'Face recognized!', user: bestMatch });
   } catch (err) {
     console.error('Face Login Error:', err);
     res.status(500).json({ message: 'Face login failed' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  TWIN IRIS MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+
+// Enroll Iris for Twin
+router.post('/enroll-iris', async (req, res) => {
+  try {
+    const { userId, descriptor } = req.body;
+    if (!descriptor || descriptor.length !== 128) {
+      return res.status(400).json({ message: 'Invalid iris descriptor (must be 128-dimensional).' });
+    }
+
+    const student = await Student.findById(userId);
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+    if (!student.isTwin) return res.status(403).json({ message: 'Iris enrollment is only available for students marked as twins.' });
+
+    student.irisDescriptor = descriptor;
+    await student.save();
+
+    res.json({ message: 'Iris biometric enrolled successfully!' });
+  } catch (err) {
+    res.status(500).json({ message: 'Iris enrollment failed: ' + err.message });
+  }
+});
+
+// Iris Identification — resolve which twin is scanning
+router.post('/iris-identify', async (req, res) => {
+  try {
+    const { descriptor, candidateIds } = req.body;
+
+    if (!descriptor || descriptor.length !== 128) {
+      return res.status(400).json({ message: 'Invalid iris descriptor.' });
+    }
+    if (!candidateIds || candidateIds.length < 2) {
+      return res.status(400).json({ message: 'Candidate IDs required for iris identification.' });
+    }
+
+    let bestMatch = null;
+    let minDist = 0.55; // threshold for iris
+
+    for (const candidateId of candidateIds) {
+      const student = await Student.findById(candidateId).populate('sectionId');
+      if (student && student.irisDescriptor && student.irisDescriptor.length === 128) {
+        const dist = calculateEuclideanDistance(descriptor, student.irisDescriptor);
+        if (dist < minDist) {
+          minDist = dist;
+          bestMatch = student;
+        }
+      }
+    }
+
+    if (!bestMatch) {
+      return res.status(401).json({ message: 'Iris scan did not match any registered twin. Please contact Admin.' });
+    }
+
+    const userData = bestMatch.toObject();
+    userData.type = 'student';
+    userData.section = bestMatch.sectionId ? bestMatch.sectionId._id.toString() : null;
+
+    res.json({ message: `Iris identification successful! Welcome, ${bestMatch.name}`, user: userData });
+  } catch (err) {
+    res.status(500).json({ message: 'Iris identification failed: ' + err.message });
+  }
+});
+
+// Mark Attendance via Iris (after twin disambiguation)
+router.post('/mark-attendance-iris', async (req, res) => {
+  try {
+    const { userId, irisDescriptor, latitude, longitude, currentTime, subjectId } = req.body;
+
+    const student = await Student.findById(userId).populate('sectionId');
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+    if (!student.isTwin) return res.status(403).json({ message: 'Iris attendance only available for twin students.' });
+
+    if (!student.irisDescriptor || student.irisDescriptor.length === 0) {
+      return res.status(400).json({ message: 'Iris data not enrolled for this student.' });
+    }
+
+    const dist = calculateEuclideanDistance(irisDescriptor, student.irisDescriptor);
+    if (dist > 0.5) {
+      return res.status(401).json({ message: 'Iris mismatch! Identification failed.' });
+    }
+
+    // Use same attendance marking logic
+    const now = currentTime ? new Date(currentTime) : new Date();
+    const today = now.toISOString().split('T')[0];
+    const sId = student.sectionId ? (student.sectionId._id || student.sectionId) : null;
+
+    if (!sId) return res.status(400).json({ message: 'Section not assigned.' });
+
+    const sectionDoc = await Section.findById(sId);
+    if (!sectionDoc) return res.status(404).json({ message: 'Section not found.' });
+
+    const sectionName = `Year ${sectionDoc.year} - ${sectionDoc.branchCode} - Sec ${sectionDoc.name}`;
+    const query = { date: today, sectionId: sId };
+    if (subjectId) query.subjectId = subjectId;
+
+    let attendance = await Attendance.findOne(query);
+    if (!attendance) {
+      attendance = new Attendance({
+        date: today, sectionId: sId, section: sectionName,
+        subjectId: subjectId || null,
+        submittedBy: 'Iris-Recognition-System', records: []
+      });
+    }
+
+    const idx = attendance.records.findIndex(r => r.registerNumber === student.reg);
+    if (idx > -1) {
+      attendance.records[idx].status = 'present';
+    } else {
+      attendance.records.push({ registerNumber: student.reg, status: 'present', lat: latitude, lng: longitude });
+    }
+    await attendance.save();
+
+    res.json({ message: `Iris attendance marked for ${student.name}!` });
+  } catch (err) {
+    res.status(500).json({ message: 'Iris attendance failed: ' + err.message });
   }
 });
 

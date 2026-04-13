@@ -570,6 +570,7 @@
   </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -647,6 +648,10 @@
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
         <span>Audit Trail</span>
       </button>
+      <button class="tab-btn" data-tab="twins">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>Twin Management</span>
+      </button>
     </div>
     
     <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">
@@ -695,7 +700,13 @@
       </div>
 
       <div class="admin-card">
-        <h3>Classroom Sections</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3>Classroom Sections</h3>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-danger" style="padding: 6px 12px; font-size: 0.75rem;" onclick="cleanCorruptedSections()">Clean Corrupted (ID Names)</button>
+            <button class="btn-danger" style="padding: 6px 12px; font-size: 0.75rem; background: #991b1b;" onclick="deleteAllSections()">Wipe All Sections</button>
+          </div>
+        </div>
         <form id="addSectionForm" class="form-inline">
           <select id="sectionYear" required><option value="">Year</option><option value="1">1st Year</option><option value="2">2nd Year</option><option value="3">3rd Year</option><option value="4">4th Year</option></select>
           <select id="sectionBranch" required><option value="">Department</option></select>
@@ -755,16 +766,19 @@
       <div class="admin-card" style="background: #fdfdfd; border-left: 5px solid var(--secondary);">
         <h3>Batch Registration (Bulk)</h3>
         <form id="bulkGenerateForm" class="form-inline" style="background:transparent; border:none; padding:0">
-          <input type="text" id="bulkPrefix" placeholder="Roll Prefix (23KD1A05)" required>
-          <input type="number" id="bulkStart" placeholder="Range Start" required style="width: 120px">
-          <input type="number" id="bulkEnd" placeholder="Range End" required style="width: 120px">
-          <input type="text" id="bulkSection" placeholder="Target Sec" required style="width:100px">
+          <input type="text" id="bulkPrefix" placeholder="Roll Prefix (e.g. 22KD1A05)">
+          <input type="text" id="bulkStart" placeholder="Start: 1-99 or A0-Z9">
+          <input type="text" id="bulkEnd" placeholder="End: 1-99 or A0-Z9">
+          <select id="bulkSection"><option value="">Select Section</option></select>
           <button type="submit" style="background: var(--secondary)">Auto-Generate Students</button>
         </form>
       </div>
 
       <div class="admin-card">
-        <h3>Student Database</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3>Student Database</h3>
+          <button class="btn-danger" style="padding: 6px 12px; font-size: 0.75rem; background: #991b1b;" onclick="deleteAllStudents()">Clear All Student Records</button>
+        </div>
         <div style="margin-bottom: 24px; display: flex; align-items: center; gap: 12px; padding: 16px; background: #f8fafc; border-radius: 12px;">
           <label>Narrow Down View: </label>
           <select id="filterStudentSection" style="flex: 1"><option value="">Show All Registered Students</option></select>
@@ -943,6 +957,103 @@
             </div>
         </div>
     </div>
+
+    <!-- TWIN MANAGEMENT TAB -->
+    <div id="twins" class="tab-content" style="display:none">
+
+      <!-- ── Card 1: Register Twin Pair ── -->
+      <div class="admin-card" style="border-left:5px solid #7c3aed;">
+        <h3 style="color:#7c3aed;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Register Twin Pair
+        </h3>
+        <p style="color:var(--text-muted);margin-bottom:20px;">Link two students as a twin pair. Face duplicates between them will be allowed. Iris scan will be required to disambiguate identity during attendance.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;padding:20px;background:#f5f3ff;border-radius:14px;border:1px solid #c4b5fd;">
+          <div>
+            <label style="font-weight:700;font-size:0.8rem;color:#7c3aed;display:block;margin-bottom:6px">TWIN A – ROLL NUMBER</label>
+            <input type="text" id="twin1Reg" placeholder="e.g. 23KD1A0501" style="width:100%;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label style="font-weight:700;font-size:0.8rem;color:#7c3aed;display:block;margin-bottom:6px">TWIN B – ROLL NUMBER</label>
+            <input type="text" id="twin2Reg" placeholder="e.g. 23KD1A0502" style="width:100%;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <button onclick="registerTwinPair()" style="background:#7c3aed;white-space:nowrap;padding:13px 22px;">🔗 Link Twins</button>
+        </div>
+      </div>
+
+      <!-- ── Card 2: Iris Scan Enrollment (Admin captures for twin) ── -->
+      <div class="admin-card" style="border-left:5px solid #0ea5e9;">
+        <h3 style="color:#0369a1;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
+          Iris Scan Enrollment
+        </h3>
+        <p style="color:var(--text-muted);margin-bottom:20px;">Enroll the iris biometric of a registered twin student. This is the secondary verification layer used when face scans are ambiguous (both twins look identical).</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
+          <!-- Controls -->
+          <div>
+            <div style="margin-bottom:16px;">
+              <label style="font-weight:700;font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:6px;">TWIN STUDENT ROLL NUMBER</label>
+              <input type="text" id="irisStudentReg" placeholder="Roll No. of twin (e.g. 23KD1A0501)"
+                     style="width:100%;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button id="irisStartBtn" onclick="startIrisCapture()" style="flex:1;padding:14px;background:linear-gradient(135deg,#0369a1,#0ea5e9);">👁️ Start Iris Capture</button>
+              <button id="irisCancelBtn" onclick="cancelIris()" style="display:none;flex:1;background:#f1f5f9;color:var(--text-main);">✖ Cancel</button>
+            </div>
+            <div style="margin-top:16px;padding:14px;border-radius:10px;background:#f0f9ff;border:1px solid #bae6fd;min-height:48px;">
+              <div id="irisEnrollStatus" style="font-weight:700;color:#0369a1;"></div>
+            </div>
+            <div style="margin-top:12px;padding:12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;font-size:0.82rem;color:#92400e;">
+              <strong>⚠️ How Iris Scan Works:</strong><br>
+              The system captures the face around the eye region and uses its biometric descriptor as the iris signature. Instruct the student to look directly at the camera.
+            </div>
+          </div>
+
+          <!-- Camera feed + iris ring -->
+          <div style="position:relative;border-radius:16px;overflow:hidden;background:#0f172a;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;">
+            <video id="irisVideo" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;top:0;left:0;"></video>
+            <canvas id="irisCanvas" style="display:none;"></canvas>
+
+            <!-- Animated iris overlay -->
+            <div id="irisOverlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:2;">
+              <div id="irisRing" style="width:150px;height:150px;border-radius:50%;border:3px solid rgba(14,165,233,0);box-shadow:0 0 0 rgba(14,165,233,0);transition:all 0.5s;display:flex;align-items:center;justify-content:center;">
+                <div style="width:46px;height:46px;border-radius:50%;border:2px solid rgba(14,165,233,0);background:transparent;transition:all 0.5s;"></div>
+              </div>
+            </div>
+
+            <!-- Placeholder -->
+            <p id="irisPlaceholder" style="color:rgba(255,255,255,0.45);font-size:0.82rem;text-align:center;padding:20px;z-index:1;position:relative;">
+              👁️ Camera inactive<br><span style="font-size:0.75rem;">Click "Start Iris Capture" to begin</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Card 3: Registered Twin Pairs Table ── -->
+      <div class="admin-card">
+        <h3 style="justify-content:space-between;">
+          <span>
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+            Registered Twin Pairs
+          </span>
+          <button onclick="loadTwins()" style="background:#f1f5f9;color:var(--text-main);font-size:0.8rem;padding:8px 14px;">↻ Refresh</button>
+        </h3>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Roll No.</th><th>Name</th><th>Twin Pair</th>
+                <th>Face Enrolled</th><th>Iris Enrolled</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="twinsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- END TWINS TAB -->
   </div>
 
   <script>
@@ -1023,8 +1134,10 @@
       const sSubSelect = document.getElementById('subjectSection');
       const eAttSelect = document.getElementById('editAttendanceSection');
       const aRepSelect = document.getElementById('analyticsSectionSelect');
+      const bSectionSelect = document.getElementById('bulkSection');
 
       tbody.innerHTML = '';
+      if(bSectionSelect) bSectionSelect.innerHTML = '<option value="">Select Section</option>';
       fSelect.innerHTML = '<option value="">All Registered Students</option>';
       gSelect.innerHTML = '<option value="">-- Choose Section --</option>';
       sSubSelect.innerHTML = '<option value="">Select Section</option>';
@@ -1043,26 +1156,48 @@
         sSubSelect.add(new Option(title, s._id));
         eAttSelect.add(new Option(title, s._id));
         aRepSelect.add(new Option(title, s._id));
+        if(bSectionSelect) bSectionSelect.add(new Option(title, s.name));
       });
       loadSubjects();
     }
 
     async function loadStudents() {
-        const sId = document.getElementById('filterStudentSection').value;
-        const res = await fetch(`${API_URL}/admin/students${sId?'?sectionId='+sId:''}`);
-        const data = await res.json();
-        const tbody = document.getElementById('studentsTableBody');
-        tbody.innerHTML = '';
-        data.forEach(s => {
-            const ipLabel = s.registeredIP ? `<br><small style="color:var(--text-muted)">IP: ${s.registeredIP}</small>` : '';
-            tbody.innerHTML += `<tr><td style="font-family:monospace">${s.reg}${ipLabel}</td><td>${s.name || '--'}</td><td>${s.sectionId?s.sectionId.name:'NA'}</td>
-                <td><span class="${s.detained?'detained-badge':'active-badge'}">${s.detained?'Detained':'Active'}</span></td>
-                <td>
-                    <button class="btn-secondary" style="background:#f1f5f9; color:var(--text-main); font-size: 11px; padding: 4px 8px;" onclick="resetBio('students', '${s._id}')">Reset Bio</button>
-                    ${s.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('student', '${s._id}')">🔓 Reset Device</button>` : ''}
-                    <button class="btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="deleteObj('students', '${s._id}')">Purge</button>
-                </td></tr>`;
-        });
+        try {
+            console.log('Loading students...');
+            const sId = document.getElementById('filterStudentSection').value;
+            const url = `${API_URL}/admin/students${sId ? '?sectionId=' + sId : ''}`;
+            console.log('Fetch URL:', url);
+            const res = await fetch(url);
+            const data = await res.json();
+            console.log('Students loaded:', data.length);
+            
+            const tbody = document.getElementById('studentsTableBody');
+            if (!tbody) { console.error('Table body not found'); return; }
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No students found</td></tr>';
+                return;
+            }
+            
+            data.forEach(s => {
+                const ipLabel = s.registeredIP ? `<br><small style="color:var(--text-muted)">IP: ${s.registeredIP}</small>` : '';
+                const sectionName = s.sectionId ? (s.sectionId.name || s.sectionId) : 'NA';
+                tbody.innerHTML += `<tr>
+                    <td style="font-family:monospace">${s.reg}${ipLabel}</td>
+                    <td>${s.name || '--'}</td>
+                    <td>${sectionName}</td>
+                    <td><span class="${s.detained ? 'detained-badge' : 'active-badge'}">${s.detained ? 'Detained' : 'Active'}</span></td>
+                    <td>
+                        <button class="btn-secondary" style="background:#f1f5f9; color:var(--text-main); font-size: 11px; padding: 4px 8px;" onclick="resetBio('students', '${s._id}')">Reset Bio</button>
+                        ${s.registeredIP ? `<button class="btn-primary" style="font-size: 11px; padding: 4px 8px; background:var(--primary-light)" onclick="resetDeviceLock('student', '${s._id}')">🔓 Reset Device</button>` : ''}
+                        <button class="btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="deleteObj('students', '${s._id}')">Purge</button>
+                    </td>
+                </tr>`;
+            });
+        } catch (err) {
+            console.error('Error loading students:', err);
+        }
     }
 
     async function loadUsers() {
@@ -1263,6 +1398,40 @@
             if(type==='branches') loadBranches(); else if(type==='sections') loadSections(); else if(type==='students') loadStudents(); else if(type==='users') loadUsers(); else loadAttendanceReports();
         } catch(e) { showMsg('Delete failed', true); }
     }
+
+    // --- BULK CLEANUP TOOLS ---
+    window.deleteAllSections = async () => {
+        if(!confirm('🚨 WARNING: This will delete ALL sections and their assigned subjects. Student records will remain but will be unlinked. Continue?')) return;
+        try {
+            const res = await fetch(`${API_URL}/admin/sections/all`, { method: 'DELETE' });
+            if(res.ok) { showMsg('All sections cleared'); loadSections(); }
+            else { showMsg('Clear failed', true); }
+        } catch(e) { showMsg('Network error', true); }
+    };
+
+    window.cleanCorruptedSections = async () => {
+        if(!confirm('This will delete sections where the name is a MongoDB ID (24 char hex). Continue?')) return;
+        try {
+            const corrupted = window.allSections.filter(s => /^[0-9a-fA-F]{24}$/.test(s.name));
+            if(corrupted.length === 0) return showMsg('No corrupted sections found');
+            
+            showMsg(`Cleaning ${corrupted.length} items...`);
+            for(let s of corrupted) {
+                await fetch(`${API_URL}/admin/sections/${s._id}`, { method: 'DELETE' });
+            }
+            showMsg('Cleanup finished');
+            loadSections();
+        } catch(e) { showMsg('Cleanup error', true); }
+    };
+
+    window.deleteAllStudents = async () => {
+        if(!confirm('🚨 CRITICAL: This will delete EVERY student in the database. Face data and history will be LOST. Proceed?')) return;
+        try {
+            const res = await fetch(`${API_URL}/admin/students/all`, { method: 'DELETE' });
+            if(res.ok) { showMsg('Database wiped'); loadStudents(); }
+            else { showMsg('Wipe failed', true); }
+        } catch(e) { showMsg('Network error', true); }
+    };
 
     // Reports Logic
     async function loadAttendanceReports() {
@@ -1508,6 +1677,109 @@
         await fetch(`${API_URL}/admin/sections`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({year: document.getElementById('sectionYear').value, branchCode: document.getElementById('sectionBranch').value, name: document.getElementById('sectionName').value, crs:[]}) });
         loadSections(); e.target.reset();
     }
+    document.getElementById('bulkGenerateForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const prefix    = document.getElementById('bulkPrefix').value.trim().toUpperCase();
+        const start     = document.getElementById('bulkStart').value.trim();
+        const end       = document.getElementById('bulkEnd').value.trim();
+        const sectionEl   = document.getElementById('bulkSection');
+        const sectionName = sectionEl.value;
+
+        console.log('Input values:', { prefix, start, end, sectionName });
+
+        if (!prefix || !start || !end || !sectionName) return showMsg('Fill all fields including section', true);
+
+        const startNum = suffixToIndex(start);
+        const endNum = suffixToIndex(end);
+        
+        console.log('Converted indices:', { startNum, endNum });
+        
+        if (startNum < 1 || endNum < 1) return showMsg('Invalid range. Use 1-99 or A0-Z9', true);
+        if (endNum < startNum) return showMsg('End must be >= Start', true);
+        if (endNum > 359) return showMsg('Max range is Z9 (359)', true);
+
+        // Build roll number list with hex-suffix continuation after 99
+        const regs = generateRollNumbers(prefix, start, end);
+        console.log('Generated:', regs.length, 'numbers');
+        if (!regs.length) return showMsg('No valid roll numbers generated', true);
+
+        const payloads = regs.map(reg => ({ reg, sectionName }));
+        console.log('Sending:', payloads.length, 'students');
+
+        const res = await fetch(`${API_URL}/admin/students`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloads)
+        });
+        const result = await res.json();
+        if (res.ok) {
+            showMsg(`✅ Generated ${result.count} students (${regs[0]} → ${regs[regs.length-1]})`);
+            loadStudents();
+            e.target.reset();
+        } else {
+            showMsg(result.error || 'Error generating students', true);
+        }
+    }
+
+    // Roll number generator: 01-99 numeric, then A0-A9, B0-B9 ... Z0-Z9
+    function generateRollNumbers(prefix, start, end) {
+        console.log('generateRollNumbers called:', { prefix, start, end });
+        const regs = [];
+        
+        const startNum = suffixToIndex(start);
+        const endNum = suffixToIndex(end);
+        
+        console.log('Converted:', { startNum, endNum });
+        
+        if (endNum < startNum) {
+            console.error('End < Start');
+            return [];
+        }
+        
+        for (let i = startNum; i <= endNum; i++) {
+            const suffix = indexToSuffix(i);
+            regs.push(prefix + suffix);
+        }
+        
+        console.log('Generated regs:', regs.slice(0, 5), '...', regs.slice(-3));
+        return regs;
+    }
+
+    // Convert suffix like '01', '67', 'A0', 'D2' to numeric index
+    function suffixToIndex(suffix) {
+        const s = String(suffix).toUpperCase().trim();
+        const lastChar = s.slice(-1);
+        const isLetter = /[A-Z]/.test(lastChar);
+        
+        if (isLetter) {
+            const letter = lastChar.charCodeAt(0) - 65; // A=0, B=1...
+            const numPart = parseInt(s.slice(0, -1)) || 0;
+            return 100 + (letter * 10) + numPart;
+        } else {
+            const num = parseInt(s);
+            if (s.length === 2 && !isNaN(num) && num <= 99) {
+                return num;
+            }
+            return num || 0;
+        }
+    }
+
+    function indexToSuffix(n) {
+        const num = Number(n);
+        if (num <= 0) return '01';
+        if (num <= 9) return '0' + num;
+        if (num <= 99) return String(num);
+        
+        const offset = num - 100;
+        const letterIndex = Math.floor(offset / 10);
+        const digit = offset % 10;
+        
+        if (letterIndex > 25) return 'ZZ';
+        
+        const letter = String.fromCharCode(65 + letterIndex);
+        return letter + digit;
+    }
+
     document.getElementById('addAdminForm').onsubmit = async (e) => {
         e.preventDefault();
         await fetch(`${API_URL}/auth/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'admin', adminId: document.getElementById('newAdminId').value, name: document.getElementById('newAdminName').value, pass: document.getElementById('newAdminPass').value, creatorId: user._id}) });
@@ -1640,6 +1912,278 @@
 
     // Start
     loadBranches(); loadSections(); loadStudents(); loadUsers(); loadReg(); loadAttendanceReports();
+
+    // --- TWIN MANAGEMENT FUNCTIONS ---
+    async function loadTwinStudents() {
+        const res = await fetch(`${API_URL}/admin/students`);
+        const students = await res.json();
+        const s1 = document.getElementById('twinStudent1');
+        const s2 = document.getElementById('twinStudent2');
+        const iris = document.getElementById('irisStudentSelect');
+        s1.innerHTML = '<option value="">Select First Twin</option>';
+        s2.innerHTML = '<option value="">Select Second Twin</option>';
+        iris.innerHTML = '<option value="">Select Twin Student</option>';
+        students.forEach(s => {
+            s1.add(new Option(`${s.reg} - ${s.name||''}`, s._id));
+            s2.add(new Option(`${s.reg} - ${s.name||''}`, s._id));
+            if(s.isTwin) iris.add(new Option(`${s.reg} - ${s.name||''}`, s._id));
+        });
+    }
+
+    async function loadTwinInfo() {
+        const sId = document.getElementById('twinStudent1').value;
+        if(!sId) { document.getElementById('twinInfoArea').style.display='none'; return; }
+        const res = await fetch(`${API_URL}/admin/students`);
+        const students = await res.json();
+        const s = students.find(x=>x._id===sId);
+        if(s && s.isTwin && s.twinReg) {
+            document.getElementById('currentTwinPair').innerText = `${s.reg} ↔ ${s.twinReg}`;
+            document.getElementById('twinStatusBadge').innerText = 'Linked ✓';
+            document.getElementById('twinStatusBadge').style.color = '#9c27b0';
+        } else {
+            document.getElementById('currentTwinPair').innerText = 'None';
+            document.getElementById('twinStatusBadge').innerText = 'Not Linked';
+            document.getElementById('twinStatusBadge').style.color = 'var(--text-muted)';
+        }
+        document.getElementById('twinInfoArea').style.display = 'block';
+    }
+
+    async function registerTwins() {
+        const s1Id = document.getElementById('twinStudent1').value;
+        const s2Id = document.getElementById('twinStudent2').value;
+        if(!s1Id || !s2Id) return showMsg('Select both twins', true);
+        if(s1Id === s2Id) return showMsg('Cannot link same student', true);
+
+        const res1 = await fetch(`${API_URL}/admin/students`);
+        const allStudents = await res1.json();
+        const s1 = allStudents.find(x=>x._id===s1Id);
+        const s2 = allStudents.find(x=>x._id===s2Id);
+        // Legacy function stub — twin registration now handled by registerTwinPair()
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  TWIN MANAGEMENT JAVASCRIPT
+    // ══════════════════════════════════════════════════════
+
+    // Register Twin Pair via roll numbers
+    async function registerTwinPair() {
+      const reg1 = document.getElementById('twin1Reg').value.trim().toUpperCase();
+      const reg2 = document.getElementById('twin2Reg').value.trim().toUpperCase();
+      if (!reg1 || !reg2) return showMsg('Enter both roll numbers.', true);
+      if (reg1 === reg2) return showMsg('Both roll numbers cannot be the same.', true);
+
+      const res = await fetch(`${API_URL}/admin/twins/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reg1, reg2 })
+      });
+      const data = await res.json();
+      if (!res.ok) return showMsg(data.error || 'Error registering twin pair.', true);
+      showMsg(data.message);
+      document.getElementById('twin1Reg').value = '';
+      document.getElementById('twin2Reg').value = '';
+      loadTwins();
+    }
+
+    // Load & render registered twin pairs
+    async function loadTwins() {
+      const res = await fetch(`${API_URL}/admin/twins`);
+      const twins = await res.json();
+      const tbody = document.getElementById('twinsTableBody');
+      tbody.innerHTML = '';
+
+      if (!twins.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">No twin pairs registered yet.</td></tr>';
+        return;
+      }
+
+      const processed = new Set();
+      twins.forEach(t => {
+        const pairKey = [t.reg, t.twinReg].sort().join('|');
+        if (processed.has(pairKey)) return;
+        processed.add(pairKey);
+
+        const faceEnrolled = t.faceDescriptor && t.faceDescriptor.length === 128;
+        const irisEnrolled = t.irisDescriptor && t.irisDescriptor.length === 128;
+
+        tbody.innerHTML += `<tr>
+          <td style="font-family:monospace;font-weight:700;">${t.reg}</td>
+          <td>${t.name || '--'}</td>
+          <td><span style="font-family:monospace;background:#f5f3ff;color:#7c3aed;padding:4px 8px;border-radius:6px;">${t.twinReg || '--'}</span></td>
+          <td>${faceEnrolled
+            ? '<span style="color:#15803d;font-weight:700;">✅ Enrolled</span>'
+            : '<span style="color:#b91c1c;">⚠ Missing</span>'}</td>
+          <td>${irisEnrolled
+            ? '<span style="color:#0369a1;font-weight:700;">👁 Enrolled</span>'
+            : '<span style="color:#b45309;">⚠ Not enrolled</span>'}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${!irisEnrolled ? `<button onclick="prefillIris('${t.reg}')" style="background:#0ea5e9;font-size:11px;padding:4px 8px;">Enroll Iris</button>` : ''}
+            <button onclick="resetIrisByReg('${t._id}')" style="background:#f1f5f9;color:var(--text-main);font-size:11px;padding:4px 8px;">Reset Iris</button>
+            <button onclick="unregisterTwin('${t.reg}')" class="btn-danger" style="font-size:11px;padding:4px 8px;">Unlink</button>
+          </td>
+        </tr>`;
+      });
+    }
+
+    function prefillIris(reg) {
+      document.getElementById('irisStudentReg').value = reg;
+      document.getElementById('irisStartBtn').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function unregisterTwin(reg) {
+      if (!confirm(`Remove twin registration for ${reg}? This will also clear iris data.`)) return;
+      const res = await fetch(`${API_URL}/admin/twins/unregister`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reg })
+      });
+      const data = await res.json();
+      if (!res.ok) return showMsg(data.error || 'Error removing twin.', true);
+      showMsg(data.message);
+      loadTwins();
+    }
+
+    async function resetIrisByReg(studentId) {
+      const res = await fetch(`${API_URL}/admin/students/${studentId}/reset-iris`, { method: 'PUT' });
+      const data = await res.json();
+      showMsg(data.message || 'Iris reset.', !res.ok);
+      loadTwins();
+    }
+
+    // ── Iris Scan (Webcam + face-api.js descriptor) ──
+    let irisStream = null;
+    let irisModelsLoaded = false;
+
+    async function startIrisCapture() {
+      const reg = document.getElementById('irisStudentReg').value.trim();
+      if (!reg) return showMsg('Enter the twin student roll number first.', true);
+
+      setIrisStatus('⏳ Loading biometric models...');
+      document.getElementById('irisStartBtn').disabled = true;
+
+      try {
+        // Load face-api models if needed
+        if (!irisModelsLoaded) {
+          await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights')
+          ]);
+          irisModelsLoaded = true;
+        }
+
+        // Start camera
+        irisStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+        const video = document.getElementById('irisVideo');
+        video.srcObject = irisStream;
+        video.style.display = 'block';
+        document.getElementById('irisPlaceholder').style.display = 'none';
+        document.getElementById('irisCancelBtn').style.display = 'inline-block';
+        document.getElementById('irisStartBtn').style.display = 'none';
+
+        // Animate iris ring
+        const ring = document.getElementById('irisRing');
+        ring.style.border = '3px solid rgba(14,165,233,0.8)';
+        ring.style.boxShadow = '0 0 30px rgba(14,165,233,0.5), inset 0 0 20px rgba(14,165,233,0.2)';
+
+        setIrisStatus('👁️ Align eye with the ring. Auto-capturing...');
+
+        // Allow camera to warm up
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Detect & capture
+        setIrisStatus('🔍 Detecting biometric signature...');
+        const detection = await faceapi
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (!detection) {
+          setIrisStatus('❌ No face detected. Ensure good lighting and look at the camera.', 'error');
+          resetIrisUI();
+          return;
+        }
+
+        const descriptor = Array.from(detection.descriptor);
+        await enrollIris(reg, descriptor);
+
+      } catch (err) {
+        setIrisStatus(`❌ Camera error: ${err.message}`, 'error');
+        resetIrisUI();
+      }
+    }
+
+    async function enrollIris(reg, descriptor) {
+      setIrisStatus('⏳ Finding student record...');
+
+      // Look up student by reg
+      const sRes = await fetch(`${API_URL}/admin/students`);
+      const students = await sRes.json();
+      const student = students.find(s => s.reg === reg.toUpperCase());
+
+      if (!student) {
+        setIrisStatus(`❌ Student ${reg} not found. Register twin pair first.`, 'error');
+        resetIrisUI();
+        return;
+      }
+
+      if (!student.isTwin) {
+        setIrisStatus(`❌ ${reg} is not marked as a twin. Register the twin pair first.`, 'error');
+        resetIrisUI();
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/auth/enroll-iris`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: student._id, descriptor })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setIrisStatus(`❌ ${data.message}`, 'error');
+      } else {
+        setIrisStatus(`✅ Iris enrolled for ${student.name || reg}!`, 'success');
+        showMsg(`Iris biometric saved for ${reg}`);
+        loadTwins();
+      }
+      resetIrisUI();
+    }
+
+    function cancelIris() {
+      resetIrisUI();
+      setIrisStatus('Cancelled.');
+    }
+
+    function resetIrisUI() {
+      if (irisStream) {
+        irisStream.getTracks().forEach(t => t.stop());
+        irisStream = null;
+      }
+      const video = document.getElementById('irisVideo');
+      video.srcObject = null;
+      video.style.display = 'none';
+      document.getElementById('irisPlaceholder').style.display = 'block';
+      document.getElementById('irisCancelBtn').style.display = 'none';
+      document.getElementById('irisStartBtn').style.display = 'inline-block';
+      document.getElementById('irisStartBtn').disabled = false;
+      const ring = document.getElementById('irisRing');
+      ring.style.border = '3px solid rgba(14,165,233,0)';
+      ring.style.boxShadow = '0';
+    }
+
+    function setIrisStatus(msg, type = 'info') {
+      const el = document.getElementById('irisEnrollStatus');
+      const colors = { info: '#0369a1', error: '#b91c1c', success: '#15803d' };
+      el.style.color = colors[type] || '#0369a1';
+      el.textContent = msg;
+    }
+
+    // Load twins when tab is opened
+    document.querySelectorAll('.tab-btn[data-tab="twins"]').forEach(btn => {
+      btn.addEventListener('click', () => loadTwins());
+    });
+
   </script>
 </body>
 </html>
