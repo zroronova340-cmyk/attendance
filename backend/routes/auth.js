@@ -183,35 +183,28 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'No such user found!' });
     if (user.pass !== pass) return res.status(400).json({ message: 'Incorrect password!' });
     
-    // --- SECURE DEVICE ID LOCK (DISABLED FOR TESTING) ---
+    // --- SECURE DEVICE ID LOCK ---
     const { deviceId } = req.body;
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    
-    // Device lock is temporarily disabled for debugging
-    // TODO: Re-enable after fixing the issue
-    /*
-    if (type !== 'admin') {
-      if (deviceId) {
-        if (!user.lockedDeviceId) {
-          user.lockedDeviceId = deviceId;
-          user.registeredIP = currentIP;
-          await user.save();
-        } else if (user.lockedDeviceId !== deviceId) {
-          return res.status(403).json({ 
-            message: `Security Lock: This account is locked to another device. Please contact Admin to unlock your device access.` 
-          });
-        }
-      } 
-      if (!user.registeredIP || user.registeredIP !== currentIP) {
-          user.registeredIP = currentIP;
-          await user.save();
+    console.log(`[LOGIN] Device: ${deviceId}, Locked: ${user.lockedDeviceId}`);
+
+    if (type !== 'admin' && deviceId) {
+      if (!user.lockedDeviceId) {
+        // First login - lock this device
+        console.log('[LOCK] Saving device ID');
+        user.lockedDeviceId = deviceId;
+        user.registeredIP = currentIP;
+        await user.save();
+      } else if (user.lockedDeviceId !== deviceId) {
+        console.log('[LOCK] Device mismatch!');
+        return res.status(403).json({ 
+          message: 'Security Lock: Device mismatch. Contact Admin.' 
+        });
       }
+      // Always update IP on successful login
+      user.registeredIP = currentIP;
+      await user.save();
     }
-    */
-   
-   // Just track IP for reference (no lock)
-   user.registeredIP = currentIP;
-   await user.save();
 
     // Add virtual type for frontend consistency
     const userData = user.toObject();

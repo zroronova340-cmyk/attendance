@@ -734,11 +734,12 @@
         // --- SECURE DEVICE ID FINGERPRINT ---
         function getDeviceId() {
             let id = localStorage.getItem('attendanceHubDeviceId');
-            if (!id) {
-                // Generate a long random unique string
-                id = 'dev_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now().toString(36);
-                localStorage.setItem('attendanceHubDeviceId', id);
-            }
+            if (id && id.length > 5) return id;
+            
+            // Generate new ID - simpler format for debugging
+            id = 'DEV_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+            console.log('[DEVICE] New device ID generated:', id);
+            localStorage.setItem('attendanceHubDeviceId', id);
             return id;
         }
 
