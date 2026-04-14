@@ -8,6 +8,7 @@ const Attendance = require('../models/Attendance');
 const Subject = require('../models/Subject');
 const Settings = require('../models/Settings');
 const PushSubscription = require('../models/PushSubscription');
+const Session = require('../models/Session');
 const { sendSMS, sendWhatsApp, sendEmail, sendPush } = require('../utils/notificationHelper');
 
 // Subscribe to Push Notifications
@@ -155,10 +156,10 @@ router.post('/change-password', async (req, res) => {
   }
 });
 
-// Login
+// Login with Session-Based Device Locking
 router.post('/login', async (req, res) => {
   try {
-    let { type, reg, facultyId, adminId, pass } = req.body;
+    let { type, reg, facultyId, adminId, pass, deviceId, deviceInfo } = req.body;
     
     // Normalize IDs
     if (reg) reg = reg.toUpperCase();
@@ -183,35 +184,100 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'No such user found!' });
     if (user.pass !== pass) return res.status(400).json({ message: 'Incorrect password!' });
     
-    // --- DEVICE LOCK (Only for admin) ---
-    const { deviceId } = req.body;
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     
-    // Only lock device for admin users (not students)
-    if (type === 'admin' && deviceId) {
-      if (!user.lockedDeviceId) {
-        user.lockedDeviceId = deviceId;
-        await user.save();
-      } else if (user.lockedDeviceId !== deviceId) {
-        return res.status(403).json({ message: 'Device locked. Contact Admin.' });
+    // --- SESSION-BASED DEVICE LOCKING (All users except admin) ---
+    if (type !== 'admin' && deviceId) {
+      // Check for existing active session
+      const existingSession = await Session.getActiveSession(user._id, type);
+      
+      if (existingSession) {
+        // Check if same device trying to login again
+        if (existingSession.deviceId === deviceId) {
+          // Same device - refresh session
+          await Session.logout(existingSession.token);
+        } else {
+          // Different device - reject login
+          return res.status(403).json({ 
+            message: 'Login on another device detected. Please logout from that device first.',
+            sessionExpired: true
+          });
+        }
       }
+      
+      // Create new session
+      const session = await Session.createSession(
+        user._id, 
+        type, 
+        deviceId, 
+        deviceInfo || {}, 
+        currentIP
+      );
+      
+      // Return token to client
+      var sessionToken = session.token;
     }
     
-    // Always track IP (no blocking)
+    // Always track IP
     user.registeredIP = currentIP;
     await user.save();
 
-    // Add virtual type for frontend consistency
+    // Build response
     const userData = user.toObject();
     userData.type = type;
     if (type === 'student' || type === 'cr') {
         userData.section = user.sectionId ? user.sectionId._id.toString() : null;
     }
 
-    res.json({ message: 'Login successful!', user: userData, clientIP: currentIP });
+    const response = { 
+      message: 'Login successful!', 
+      user: userData, 
+      clientIP: currentIP 
+    };
+    
+    // Add session token if device locking is enabled
+    if (sessionToken) {
+      response.sessionToken = sessionToken;
+    }
+
+    res.json(response);
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Login failed: ' + err.message });
+  }
+});
+
+// Logout - invalidate session
+router.post('/logout', async (req, res) => {
+  try {
+    const { sessionToken } = req.body;
+    if (sessionToken) {
+      await Session.logout(sessionToken);
+    }
+    res.json({ message: 'Logged out successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check session status
+router.get('/session-status', async (req, res) => {
+  try {
+    const { userId, userType, deviceId } = req.query;
+    const session = await Session.getActiveSession(userId, userType);
+    
+    if (!session) {
+      return res.json({ active: false });
+    }
+    
+    res.json({ 
+      active: true, 
+      sameDevice: session.deviceId === deviceId,
+      deviceId: session.deviceId,
+      lastActive: session.lastActive
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

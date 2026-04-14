@@ -1077,12 +1077,25 @@
       else { showToast("Current key is incorrect", 'error'); }
     };
 
-    window.logout = () => { 
-      // Keep device ID for re-login, clear everything else
-      const deviceId = localStorage.getItem('attendanceHubDeviceId');
+    window.logout = async () => { 
+      // Invalidate session before logout
+      const sessionToken = localStorage.getItem('sessionToken');
+      if (sessionToken) {
+        try {
+          await fetch(`${API_URL}/auth/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionToken })
+          });
+        } catch(e) { console.log('Session logout error:', e); }
+      }
+      
+      // Clear storage except device ID
+      const deviceId = localStorage.getItem('myDeviceId');
       localStorage.clear();
-      if (deviceId) localStorage.setItem('attendanceHubDeviceId', deviceId);
+      if (deviceId) localStorage.setItem('myDeviceId', deviceId);
       sessionStorage.clear(); 
+      
       window.location.href = "auth.html"; 
     };
 

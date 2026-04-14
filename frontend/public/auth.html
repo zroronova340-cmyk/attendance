@@ -736,7 +736,6 @@
             let id = localStorage.getItem('myDeviceId');
             if (id) return id;
             
-            // Create from browser properties (these stay same on same device)
             const props = navigator.userAgent + '|' + screen.width + 'x' + screen.height + '|' + screen.colorDepth + '|' + navigator.language;
             let hash = 0;
             for (let i = 0; i < props.length; i++) {
@@ -748,18 +747,28 @@
             return id;
         }
 
+        // Get device info for session
+        function getDeviceInfo() {
+            return {
+                browser: navigator.userAgent,
+                os: navigator.platform,
+                platform: 'web'
+            };
+        }
+
         loginForm.onsubmit = async (e) => {
             e.preventDefault();
             const btn   = document.getElementById('loginSubmitBtn');
             const type  = loginType.value;
             const idVal = document.getElementById('loginId').value.trim().toUpperCase();
             const pass  = document.getElementById('loginPass').value;
-            const deviceId = getDeviceId(); // Unique lock code
+            const deviceId = getDeviceId();
+            const deviceInfo = getDeviceInfo();
 
             btn.classList.add('loading');
             btn.disabled = true;
 
-            const payload = { type, pass, deviceId };
+            const payload = { type, pass, deviceId, deviceInfo };
             if (['cr', 'student'].includes(type)) payload.reg = idVal;
             else if (type === 'faculty') payload.facultyId = idVal;
             else payload.adminId = idVal;
@@ -767,8 +776,22 @@
             try {
                 const res  = await fetch(`${API_BASE}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const data = await res.json();
+                
+                // Handle session expired / device mismatch
+                if (res.status === 403 && data.sessionExpired) {
+                    showMsg('loginMsg', data.message + ' Please logout from other device.', 'error');
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                    return;
+                }
+                
                 if (res.ok) {
                     showMsg('loginMsg', "Authorized. Opening portal…", 'success');
+                    
+                    // Save session token if received
+                    if (data.sessionToken) {
+                        localStorage.setItem('sessionToken', data.sessionToken);
+                    }
                     
                     // --- PERSISTENCE CHOICE ---
                     const remember = document.getElementById('rememberMe').checked;
