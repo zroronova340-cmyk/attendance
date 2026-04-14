@@ -731,15 +731,35 @@
             el.className = `msg ${type}`;
         }
 
-        // --- SECURE DEVICE ID FINGERPRINT ---
+        // --- SECURE DEVICE FINGERPRINT (PERMANENT) ---
         function getDeviceId() {
-            let id = localStorage.getItem('attendanceHubDeviceId');
-            if (id && id.length > 5) return id;
+            // Check localStorage first - if exists, return it
+            let id = localStorage.getItem('deviceFingerprint');
+            if (id && id.startsWith('DEV_')) {
+                return id;
+            }
             
-            // Generate new ID - simpler format for debugging
-            id = 'DEV_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-            console.log('[DEVICE] New device ID generated:', id);
-            localStorage.setItem('attendanceHubDeviceId', id);
+            // Create fingerprint from stable browser properties
+            const fp = [
+                navigator.userAgent || '',
+                navigator.platform || '',
+                navigator.language || '',
+                screen.width || '',
+                screen.height || '',
+                screen.colorDepth || '',
+                window.devicePixelRatio || ''
+            ].join('||');
+            
+            // Simple hash
+            let hash = 0;
+            for (let i = 0; i < fp.length; i++) {
+                hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+                hash = hash & hash;
+            }
+            
+            id = 'DEV_' + Math.abs(hash).toString(36).toUpperCase();
+            localStorage.setItem('deviceFingerprint', id);
+            console.log('[DEVICE] New fingerprint:', id);
             return id;
         }
 
