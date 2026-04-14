@@ -731,35 +731,20 @@
             el.className = `msg ${type}`;
         }
 
-        // --- SECURE DEVICE FINGERPRINT (PERMANENT) ---
+        // --- PERMANENT DEVICE ID ---
         function getDeviceId() {
-            // Check localStorage first - if exists, return it
-            let id = localStorage.getItem('deviceFingerprint');
-            if (id && id.startsWith('DEV_')) {
-                return id;
-            }
+            let id = localStorage.getItem('myDeviceId');
+            if (id) return id;
             
-            // Create fingerprint from stable browser properties
-            const fp = [
-                navigator.userAgent || '',
-                navigator.platform || '',
-                navigator.language || '',
-                screen.width || '',
-                screen.height || '',
-                screen.colorDepth || '',
-                window.devicePixelRatio || ''
-            ].join('||');
-            
-            // Simple hash
+            // Create from browser properties (these stay same on same device)
+            const props = navigator.userAgent + '|' + screen.width + 'x' + screen.height + '|' + screen.colorDepth + '|' + navigator.language;
             let hash = 0;
-            for (let i = 0; i < fp.length; i++) {
-                hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+            for (let i = 0; i < props.length; i++) {
+                hash = ((hash << 5) - hash) + props.charCodeAt(i);
                 hash = hash & hash;
             }
-            
-            id = 'DEV_' + Math.abs(hash).toString(36).toUpperCase();
-            localStorage.setItem('deviceFingerprint', id);
-            console.log('[DEVICE] New fingerprint:', id);
+            id = 'DEV' + Math.abs(hash).toString(16).toUpperCase();
+            localStorage.setItem('myDeviceId', id);
             return id;
         }
 

@@ -183,28 +183,23 @@ router.post('/login', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'No such user found!' });
     if (user.pass !== pass) return res.status(400).json({ message: 'Incorrect password!' });
     
-    // --- SECURE DEVICE ID LOCK ---
+    // --- DEVICE LOCK (Only for admin) ---
     const { deviceId } = req.body;
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    console.log(`[LOGIN] Device: ${deviceId}, Locked: ${user.lockedDeviceId}`);
-
-    if (type !== 'admin' && deviceId) {
+    
+    // Only lock device for admin users (not students)
+    if (type === 'admin' && deviceId) {
       if (!user.lockedDeviceId) {
-        // First login - lock this device
-        console.log('[LOCK] Saving device ID');
         user.lockedDeviceId = deviceId;
-        user.registeredIP = currentIP;
         await user.save();
       } else if (user.lockedDeviceId !== deviceId) {
-        console.log('[LOCK] Device mismatch!');
-        return res.status(403).json({ 
-          message: 'Security Lock: Device mismatch. Contact Admin.' 
-        });
+        return res.status(403).json({ message: 'Device locked. Contact Admin.' });
       }
-      // Always update IP on successful login
-      user.registeredIP = currentIP;
-      await user.save();
     }
+    
+    // Always track IP (no blocking)
+    user.registeredIP = currentIP;
+    await user.save();
 
     // Add virtual type for frontend consistency
     const userData = user.toObject();
