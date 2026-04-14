@@ -56,11 +56,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 
-// OCR endpoint - removed (was using external API that doesn't support images)
-// This returns 404 for any OCR-related requests
-app.all('/api/ocr', (req, res) => {
-  res.status(404).json({ error: "OCR feature has been removed" });
-});
+// OCR feature removed - no longer available
+// If any frontend tries to call /api/ocr, return 404
 
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
