@@ -782,7 +782,15 @@
       closeFacCam();
     }
 
-    window.logout = () => { localStorage.clear(); sessionStorage.clear(); window.location.href = 'auth.html'; };
+    window.logout = () => { 
+      const deviceId = localStorage.getItem('myDeviceId');
+      const theme = localStorage.getItem('theme');
+      localStorage.clear(); 
+      sessionStorage.clear(); 
+      if (deviceId) localStorage.setItem('myDeviceId', deviceId);
+      if (theme) localStorage.setItem('theme', theme);
+      window.location.href = 'auth.html'; 
+    };
     init();
 
     // --- DARK MODE LOGIC ---

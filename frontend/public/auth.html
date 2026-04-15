@@ -731,20 +731,51 @@
             el.className = `msg ${type}`;
         }
 
-        // --- PERMANENT DEVICE ID ---
-        function getDeviceId() {
-            let id = localStorage.getItem('myDeviceId');
-            if (id) return id;
+        // --- PERMANENT DEVICE FINGERPRINT ---
+        // Generates a deterministic device ID from hardware properties.
+        // This ID survives localStorage clears, logout, and app restarts.
+        function generateHardwareFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('DeviceLock@2025', 2, 2);
+            const canvasHash = canvas.toDataURL().slice(-50);
             
-            const props = navigator.userAgent + '|' + screen.width + 'x' + screen.height + '|' + screen.colorDepth + '|' + navigator.language;
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            let gpu = 'unknown';
+            if (gl) {
+                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                if (dbg) gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+            }
+
+            const props = [
+                screen.width, screen.height, screen.colorDepth,
+                navigator.language, navigator.hardwareConcurrency || 0,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.platform, gpu, canvasHash
+            ].join('|');
+            
             let hash = 0;
             for (let i = 0; i < props.length; i++) {
                 hash = ((hash << 5) - hash) + props.charCodeAt(i);
-                hash = hash & hash;
+                hash = hash & hash; // Convert to 32-bit integer
             }
-            id = 'DEV' + Math.abs(hash).toString(16).toUpperCase();
-            localStorage.setItem('myDeviceId', id);
-            return id;
+            return 'DFP' + Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+        }
+
+        function getDeviceId() {
+            // Always regenerate from hardware fingerprint (deterministic)
+            const fingerprintId = generateHardwareFingerprint();
+            
+            // Also persist in localStorage as a backup identifier
+            const storedId = localStorage.getItem('myDeviceId');
+            if (!storedId) {
+                localStorage.setItem('myDeviceId', fingerprintId);
+            }
+            
+            // Use fingerprint (hardware-based, survives clears)
+            return fingerprintId;
         }
 
         // Get device info for session
@@ -777,9 +808,17 @@
                 const res  = await fetch(`${API_BASE}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 const data = await res.json();
                 
-                // Handle session expired / device mismatch
-                if (res.status === 403 && data.sessionExpired) {
-                    showMsg('loginMsg', data.message + ' Please logout from other device.', 'error');
+                // Handle device locked (permanent lock)
+                if (res.status === 403 && data.deviceLocked) {
+                    showMsg('loginMsg', '🔒 ' + data.message, 'error');
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                    return;
+                }
+                
+                // Handle session expired / other 403
+                if (res.status === 403) {
+                    showMsg('loginMsg', data.message, 'error');
                     btn.classList.remove('loading');
                     btn.disabled = false;
                     return;

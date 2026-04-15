@@ -1813,8 +1813,12 @@
     document.getElementById('editAttendanceDate').valueAsDate = new Date();
     document.getElementById('filterStudentSection').onchange = loadStudents;
     document.getElementById('logoutBtn').onclick = () => { 
+        const deviceId = localStorage.getItem('myDeviceId');
+        const theme = localStorage.getItem('theme');
         localStorage.clear(); 
         sessionStorage.clear(); 
+        if (deviceId) localStorage.setItem('myDeviceId', deviceId);
+        if (theme) localStorage.setItem('theme', theme);
         window.location.href="auth.html"; 
     };
 

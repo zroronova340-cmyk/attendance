@@ -8,6 +8,7 @@ const Settings = require('../models/Settings');
 const Attendance = require('../models/Attendance');
 const Subject = require('../models/Subject');
 const AuditLog = require('../models/AuditLog');
+const Session = require('../models/Session');
 
 // Setup default branches (useful for initialization)
 router.post('/init', async (req, res) => {
@@ -282,6 +283,12 @@ router.put('/reset-device-lock/:type/:id', async (req, res) => {
         
         await model.findByIdAndUpdate(id, { registeredIP: null, lockedDeviceId: null });
         
+        // Also clear ALL active sessions for this user
+        await Session.updateMany(
+            { userId: id, isActive: true },
+            { isActive: false }
+        );
+        
         const updated = await model.findById(id);
         console.log(`[RESET] After: lockedDeviceId = ${updated?.lockedDeviceId}, registeredIP = ${updated?.registeredIP}`);
         
@@ -289,11 +296,11 @@ router.put('/reset-device-lock/:type/:id', async (req, res) => {
         await AuditLog.create({
             performedBy: 'Admin',
             action: 'Device-IP Unlock',
-            targetId: id,
-            details: `Admin reset device/IP lock for account role [${type}]. Next login will capture new IP.`
+            targetId: old?.reg || old?.facultyId || id,
+            details: `Admin reset device lock for [${type}] account. Previous device: ${old?.lockedDeviceId || 'none'}. All sessions cleared. Next login will bind to new device.`
         });
 
-        res.json({ message: 'Device IP lock has been cleared.' });
+        res.json({ message: 'Device lock has been cleared. User can now login from a new device.' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

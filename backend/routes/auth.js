@@ -156,7 +156,7 @@ router.post('/change-password', async (req, res) => {
   }
 });
 
-// Login with Session-Based Device Locking
+// Login with PERMANENT Device Locking
 router.post('/login', async (req, res) => {
   try {
     let { type, reg, facultyId, adminId, pass, deviceId, deviceInfo } = req.body;
@@ -186,23 +186,34 @@ router.post('/login', async (req, res) => {
     
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     
-    // --- SESSION-BASED DEVICE LOCKING (All users except admin) ---
+    // ═══════════════════════════════════════════════════════════
+    //  PERMANENT DEVICE LOCKING (All users except admin)
+    //  Once a device is recorded, it CANNOT be changed unless
+    //  an admin resets the device lock from the admin panel.
+    // ═══════════════════════════════════════════════════════════
     if (type !== 'admin' && deviceId) {
-      // Check for existing active session
-      const existingSession = await Session.getActiveSession(user._id, type);
       
+      // STEP 1: Check if this account is already locked to a device
+      if (user.lockedDeviceId && user.lockedDeviceId !== deviceId) {
+        // BLOCKED: This account is permanently locked to a different device
+        console.log(`[DEVICE-LOCK] BLOCKED login for ${user.reg || user.facultyId} - Expected device: ${user.lockedDeviceId}, Got: ${deviceId}`);
+        return res.status(403).json({ 
+          message: 'Access Denied: Your account is locked to another device. Please contact the Administrator to reset your device lock.',
+          deviceLocked: true
+        });
+      }
+      
+      // STEP 2: If no device is locked yet, lock this device permanently
+      if (!user.lockedDeviceId) {
+        user.lockedDeviceId = deviceId;
+        console.log(`[DEVICE-LOCK] First login - Locking ${user.reg || user.facultyId} to device: ${deviceId}`);
+      }
+      
+      // STEP 3: Session management (secondary layer)
+      const existingSession = await Session.getActiveSession(user._id, type);
       if (existingSession) {
-        // Check if same device trying to login again
-        if (existingSession.deviceId === deviceId) {
-          // Same device - refresh session
-          await Session.logout(existingSession.token);
-        } else {
-          // Different device - reject login
-          return res.status(403).json({ 
-            message: 'Login on another device detected. Please logout from that device first.',
-            sessionExpired: true
-          });
-        }
+        // Deactivate old session (same device re-login)
+        await Session.logout(existingSession.token);
       }
       
       // Create new session
@@ -214,7 +225,6 @@ router.post('/login', async (req, res) => {
         currentIP
       );
       
-      // Return token to client
       var sessionToken = session.token;
     }
     
@@ -235,7 +245,6 @@ router.post('/login', async (req, res) => {
       clientIP: currentIP 
     };
     
-    // Add session token if device locking is enabled
     if (sessionToken) {
       response.sessionToken = sessionToken;
     }
