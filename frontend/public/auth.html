@@ -731,52 +731,159 @@
             el.className = `msg ${type}`;
         }
 
-        // --- PERMANENT DEVICE FINGERPRINT ---
-        // Generates a deterministic device ID from hardware properties.
-        // This ID survives localStorage clears, logout, and app restarts.
-        function generateHardwareFingerprint() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.textBaseline = 'top';
-            ctx.font = '14px Arial';
-            ctx.fillText('DeviceLock@2025', 2, 2);
-            const canvasHash = canvas.toDataURL().slice(-50);
-            
-            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            let gpu = 'unknown';
-            if (gl) {
-                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-                if (dbg) gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
-            }
-
-            const props = [
-                screen.width, screen.height, screen.colorDepth,
-                navigator.language, navigator.hardwareConcurrency || 0,
-                Intl.DateTimeFormat().resolvedOptions().timeZone,
-                navigator.platform, gpu, canvasHash
-            ].join('|');
-            
-            let hash = 0;
-            for (let i = 0; i < props.length; i++) {
-                hash = ((hash << 5) - hash) + props.charCodeAt(i);
-                hash = hash & hash; // Convert to 32-bit integer
-            }
-            return 'DFP' + Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+        // ═══════════════════════════════════════════════════════════
+        //  PERSISTENT DEVICE ID SYSTEM
+        //  Uses UUID stored across multiple backends (localStorage,
+        //  cookies, IndexedDB) to survive app restarts, logouts,
+        //  and cache clears. Also supports median.co native API.
+        // ═══════════════════════════════════════════════════════════
+        
+        // Cookie helpers
+        function setCookie(name, value, days) {
+            const d = new Date();
+            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${value};expires=${d.toUTCString()};path=/;SameSite=Lax`;
+        }
+        function getCookie(name) {
+            const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+            return match ? match[2] : null;
         }
 
+        // IndexedDB helpers (for maximum persistence)
+        function saveToIDB(key, value) {
+            try {
+                const req = indexedDB.open('DeviceLockDB', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('config')) {
+                        db.createObjectStore('config');
+                    }
+                };
+                req.onsuccess = (e) => {
+                    const db = e.target.result;
+                    const tx = db.transaction('config', 'readwrite');
+                    tx.objectStore('config').put(value, key);
+                };
+            } catch(e) { /* IndexedDB not available */ }
+        }
+
+        function getFromIDB(key) {
+            return new Promise((resolve) => {
+                try {
+                    const req = indexedDB.open('DeviceLockDB', 1);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('config')) {
+                            db.createObjectStore('config');
+                        }
+                    };
+                    req.onsuccess = (e) => {
+                        const db = e.target.result;
+                        const tx = db.transaction('config', 'readonly');
+                        const getReq = tx.objectStore('config').get(key);
+                        getReq.onsuccess = () => resolve(getReq.result || null);
+                        getReq.onerror = () => resolve(null);
+                    };
+                    req.onerror = () => resolve(null);
+                    // Timeout fallback
+                    setTimeout(() => resolve(null), 1000);
+                } catch(e) { resolve(null); }
+            });
+        }
+
+        // Generate a new unique device ID
+        function generateNewDeviceId() {
+            // Use crypto.randomUUID if available, else fallback
+            if (crypto && crypto.randomUUID) {
+                return 'DEV_' + crypto.randomUUID().replace(/-/g, '').substring(0, 16).toUpperCase();
+            }
+            // Fallback: timestamp + random
+            const ts = Date.now().toString(36).toUpperCase();
+            const rnd = Math.random().toString(36).substring(2, 10).toUpperCase();
+            return 'DEV_' + ts + rnd;
+        }
+
+        // Persist device ID to ALL storage backends
+        function persistDeviceId(id) {
+            localStorage.setItem('myDeviceId', id);
+            setCookie('myDeviceId', id, 365 * 5); // 5-year cookie
+            saveToIDB('myDeviceId', id);
+        }
+
+        // Main function: Get device ID from best available source
+        async function getDeviceIdAsync() {
+            // Priority 1: Median.co native device info (Android APK)
+            if (window.median && median.deviceInfo) {
+                try {
+                    const info = await new Promise((resolve, reject) => {
+                        median.deviceInfo.getInfo(function(deviceInfo) {
+                            resolve(deviceInfo);
+                        });
+                        setTimeout(() => reject('timeout'), 2000);
+                    });
+                    if (info && info.deviceId) {
+                        const nativeId = 'NAT_' + info.deviceId;
+                        persistDeviceId(nativeId);
+                        return nativeId;
+                    }
+                } catch(e) { /* native API not available */ }
+            }
+
+            // Priority 2: localStorage (fastest, preserved across logouts)
+            const fromLS = localStorage.getItem('myDeviceId');
+            if (fromLS) {
+                // Re-sync to other backends
+                setCookie('myDeviceId', fromLS, 365 * 5);
+                saveToIDB('myDeviceId', fromLS);
+                return fromLS;
+            }
+
+            // Priority 3: Cookie (survives localStorage.clear)
+            const fromCookie = getCookie('myDeviceId');
+            if (fromCookie) {
+                localStorage.setItem('myDeviceId', fromCookie);
+                saveToIDB('myDeviceId', fromCookie);
+                return fromCookie;
+            }
+
+            // Priority 4: IndexedDB (survives both cookie & localStorage clear)
+            const fromIDB = await getFromIDB('myDeviceId');
+            if (fromIDB) {
+                localStorage.setItem('myDeviceId', fromIDB);
+                setCookie('myDeviceId', fromIDB, 365 * 5);
+                return fromIDB;
+            }
+
+            // Priority 5: No ID anywhere - generate & persist new one
+            const newId = generateNewDeviceId();
+            console.log('[DEVICE-LOCK] First visit - generating new device ID:', newId);
+            persistDeviceId(newId);
+            return newId;
+        }
+
+        // Synchronous wrapper (uses cached value if available)
         function getDeviceId() {
-            // Always regenerate from hardware fingerprint (deterministic)
-            const fingerprintId = generateHardwareFingerprint();
-            
-            // Also persist in localStorage as a backup identifier
-            const storedId = localStorage.getItem('myDeviceId');
-            if (!storedId) {
-                localStorage.setItem('myDeviceId', fingerprintId);
+            // Try synchronous sources first
+            const fromLS = localStorage.getItem('myDeviceId');
+            if (fromLS) return fromLS;
+
+            const fromCookie = getCookie('myDeviceId');
+            if (fromCookie) {
+                localStorage.setItem('myDeviceId', fromCookie);
+                saveToIDB('myDeviceId', fromCookie);
+                return fromCookie;
             }
-            
-            // Use fingerprint (hardware-based, survives clears)
-            return fingerprintId;
+
+            // If nothing found synchronously, generate new
+            const newId = generateNewDeviceId();
+            persistDeviceId(newId);
+            return newId;
         }
+
+        // Pre-load device ID from async sources on page load
+        (async function() {
+            await getDeviceIdAsync();
+        })();
 
         // Get device info for session
         function getDeviceInfo() {

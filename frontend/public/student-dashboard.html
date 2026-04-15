@@ -1090,10 +1090,12 @@
         } catch(e) { console.log('Session logout error:', e); }
       }
       
-      // Clear storage except device ID
+      // Clear storage except device ID and theme
       const deviceId = localStorage.getItem('myDeviceId');
+      const theme = localStorage.getItem('theme');
       localStorage.clear();
       if (deviceId) localStorage.setItem('myDeviceId', deviceId);
+      if (theme) localStorage.setItem('theme', theme);
       sessionStorage.clear(); 
       
       window.location.href = "auth.html"; 
