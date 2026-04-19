@@ -345,10 +345,10 @@ router.post('/enroll-face', async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Check uniqueness against approved faces
+    // Check uniqueness against APPROVED faces only
     const [allUsers, allStudents] = await Promise.all([
-      User.find({ faceDescriptor: { $exists: true, $ne: [] } }),
-      Student.find({ faceDescriptor: { $exists: true, $ne: [] } })
+      User.find({ faceDescriptor: { $exists: true, $ne: [] }, faceEnrollmentStatus: 'approved' }),
+      Student.find({ faceDescriptor: { $exists: true, $ne: [] }, faceEnrollmentStatus: 'approved' })
     ]);
 
     for (let u of [...allUsers, ...allStudents]) {
