@@ -345,6 +345,10 @@ router.post('/enroll-face', async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    // Ensure schema fields exist
+    if (!user.faceEnrollmentStatus) user.faceEnrollmentStatus = null;
+    if (!user.pendingFaceDescriptor) user.pendingFaceDescriptor = [];
+
     // Check uniqueness against APPROVED faces only
     const [allUsers, allStudents] = await Promise.all([
       User.find({ faceDescriptor: { $exists: true, $ne: [] }, faceEnrollmentStatus: 'approved' }),
