@@ -202,11 +202,11 @@ router.post('/login', async (req, res) => {
     const currentIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     
     // ═══════════════════════════════════════════════════════════
-    //  PERMANENT DEVICE LOCKING (All users except admin)
+    //  PERMANENT DEVICE LOCKING (All users except admin and CR)
     //  Once a device is recorded, it CANNOT be changed unless
     //  an admin resets the device lock from the admin panel.
     // ═══════════════════════════════════════════════════════════
-    if (type !== 'admin' && deviceId) {
+    if (type !== 'admin' && type !== 'cr' && deviceId) {
       
       // STEP 1: Check if this account is already locked to a device
       if (user.lockedDeviceId && user.lockedDeviceId !== deviceId) {
