@@ -1089,7 +1089,11 @@
 
       if (res.ok) {
         const d = await res.json();
-        if (isEnrollmentMode) { user.faceDescriptor = Array.from(currentDescriptor); localStorage.setItem('currentUser', JSON.stringify(user)); updateFaceStatus(); }
+        if (isEnrollmentMode) {
+          user.faceEnrollmentStatus = 'pending';
+          localStorage.setItem('currentUser', JSON.stringify(user));
+          updateFaceStatus();
+        }
         showToast(d.message || "Operation Successful ✓");
       } else {
         const d = await res.json();

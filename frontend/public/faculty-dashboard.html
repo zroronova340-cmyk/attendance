@@ -791,12 +791,11 @@
       const d = await res.json();
       if (res.ok) {
         if (facEnrollMode) {
-          user.faceDescriptor = Array.from(facDescriptor);
+          user.faceEnrollmentStatus = 'pending';
           localStorage.setItem('currentUser', JSON.stringify(user));
-          document.getElementById('faceFlagBadge').style.display = 'inline-block';
+          document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:#eab308;">⏳ Pending admin approval</span>';
           document.getElementById('facEnrollBtn').style.display = 'none';
-          document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:var(--secondary);">Enrolled ✅</span>';
-          showToast('Face enrolled successfully ✓');
+          showToast('Face enrollment submitted! Waiting for admin approval.');
         } else {
           // Verify mode — Mark daily attendance with geofence
           const dailyRes = await fetch(`${API_URL}/attendance/faculty-daily`, {
