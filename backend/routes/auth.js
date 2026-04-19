@@ -1,5 +1,5 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const mongoose = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Section = require('../models/Section');
@@ -9,6 +9,7 @@ const Subject = require('../models/Subject');
 const Settings = require('../models/Settings');
 const PushSubscription = require('../models/PushSubscription');
 const Session = require('../models/Session');
+const FaceEnrollment = require('../models/FaceEnrollment');
 const { sendSMS, sendWhatsApp, sendEmail, sendPush } = require('../utils/notificationHelper');
 
 // Subscribe to Push Notifications
@@ -371,14 +372,19 @@ router.post('/enroll-face', async (req, res) => {
       }
     }
 
-    // Save as pending (admin approval required)
-    user.pendingFaceDescriptor = descriptor;
-    user.faceEnrollmentStatus = 'pending';
-    user.pendingFaceSubmittedAt = new Date();
-    await user.save();
+    // Create face enrollment request in collection
+    const userLabel = user.reg || user.facultyId || user.adminId || user.name;
+    await FaceEnrollment.create({
+      userId: user._id,
+      userType: type,
+      reg: user.reg || null,
+      name: user.name,
+      faceDescriptor: descriptor,
+      status: 'pending',
+      submittedAt: new Date()
+    });
 
     // Notify admin about pending face enrollment
-    const userLabel = user.reg || user.facultyId || user.adminId || user.name;
     const adminMsg = `Smart Attendance: New face enrollment request from ${userLabel} (${type}). Please verify in Admin Dashboard.`;
     const admins = await User.find({ type: 'admin' });
     for (const admin of admins) {

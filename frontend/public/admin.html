@@ -1276,48 +1276,42 @@
         const countBadge = document.getElementById('facePendingCount');
 
         container.innerHTML = '';
-        const allPending = [...(data.students || []), ...(data.users || [])];
-        const totalCount = allPending.length;
-
-        if (totalCount === 0) {
+        if (!data.length) {
             container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--text-muted)">No pending face enrollments.</p>';
             countBadge.innerText = '0';
             return;
         }
 
-        countBadge.innerText = totalCount;
+        countBadge.innerText = data.length;
 
-        allPending.forEach(u => {
-            const userType = u.reg ? 'student' : 'user';
-            const userLabel = u.reg || u.facultyId || u.adminId || u.name;
-            const dateStr = u.pendingFaceSubmittedAt ? new Date(u.pendingFaceSubmittedAt).toLocaleString() : 'Recent';
-
+        data.forEach(u => {
+            const dateStr = new Date(u.submittedAt).toLocaleString();
             const card = document.createElement('div');
             card.className = 'form-inline';
             card.style = "justify-content: space-between; align-items: center; margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:8px;";
             card.innerHTML = `
                 <div>
-                    <b>${u.name}</b> (${userLabel})<br>
-                    <small>Type: ${userType} | Submitted: ${dateStr}</small>
+                    <b>${u.name}</b> (${u.reg || u.userType})<br>
+                    <small>Type: ${u.userType} | Submitted: ${dateStr}</small>
                 </div>
                 <div style="display:flex; gap:10px">
-                    <button onclick="approveFace('${userType}', '${u._id}')" style="background:#22c55e; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Approve</button>
-                    <button onclick="rejectFace('${userType}', '${u._id}')" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Reject</button>
+                    <button onclick="approveFace('${u._id}')" style="background:#22c55e; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Approve</button>
+                    <button onclick="rejectFace('${u._id}')" style="background:#ef4444; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Reject</button>
                 </div>
             `;
             container.appendChild(card);
         });
     }
 
-    async function approveFace(type, id) {
-        const res = await fetch(`${API_URL}/admin/approve-face/${type}/${id}`, { method: 'PUT' });
+    async function approveFace(id) {
+        const res = await fetch(`${API_URL}/admin/approve-face/${id}`, { method: 'PUT' });
         if(res.ok) { showMsg('Face enrollment approved'); loadFaceEnrollments(); }
         else { showMsg('Approval failed', true); }
     }
 
-    async function rejectFace(type, id) {
+    async function rejectFace(id) {
         const reason = prompt('Enter rejection reason (optional):');
-        const res = await fetch(`${API_URL}/admin/reject-face/${type}/${id}`, {
+        const res = await fetch(`${API_URL}/admin/reject-face/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason: reason || '' })
