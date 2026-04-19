@@ -817,20 +817,32 @@
     function updateFaceStatus() {
       // Check for descriptor in any form (Array or Object with numeric keys)
       const hasBio = user.faceDescriptor && (
-        (Array.isArray(user.faceDescriptor) && user.faceDescriptor.length > 0) || 
+        (Array.isArray(user.faceDescriptor) && user.faceDescriptor.length > 0) ||
         (typeof user.faceDescriptor === 'object' && Object.keys(user.faceDescriptor).length > 0)
       );
-      
+
       const faceStatusEl = document.getElementById('faceStatus');
       const enrollBtn = document.getElementById('enrollBtn');
       const markBtn = document.getElementById('markAttendanceBtn');
       const irisSection = document.getElementById('irisScanSection');
       const irisEnrollBtn = document.getElementById('irisEnrollBtn');
 
-      if (hasBio) {
-        if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: var(--secondary);">Verified ✅</span>`;
+      const isApproved = user.faceEnrollmentStatus === 'approved';
+      const isPending = user.faceEnrollmentStatus === 'pending';
+      const isRejected = user.faceEnrollmentStatus === 'rejected';
+
+      if (hasBio && isApproved) {
+        if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: #22c55e;">Approved ✅</span>`;
         if(enrollBtn) enrollBtn.style.display = 'none';
         if (document.getElementById('profileCard')) document.getElementById('profileCard').style.display = 'none';
+      } else if (isPending) {
+        if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: #eab308;">⏳ Pending admin approval</span>`;
+        if(enrollBtn) enrollBtn.style.display = 'none';
+        if (document.getElementById('profileCard')) document.getElementById('profileCard').style.display = 'none';
+      } else if (isRejected) {
+        if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: #ef4444;">❌ Rejected - Please re-enroll</span>`;
+        if(enrollBtn) enrollBtn.style.display = 'flex';
+        if (document.getElementById('profileCard')) document.getElementById('profileCard').style.display = 'block';
       } else {
         if(faceStatusEl) faceStatusEl.innerHTML = `Biometric record: <span style="color: var(--accent);">Pending registration</span>`;
         if(enrollBtn) enrollBtn.style.display = 'flex';
@@ -845,6 +857,31 @@
       }
     }
     updateFaceStatus();
+
+    // Poll for face enrollment status changes
+    let lastFaceStatus = user.faceEnrollmentStatus;
+    setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/profile/${user._id}?type=${user.type}`);
+        const data = await res.json();
+        if (data.user && data.user.faceEnrollmentStatus !== lastFaceStatus) {
+          const newStatus = data.user.faceEnrollmentStatus;
+          lastFaceStatus = newStatus;
+          user.faceEnrollmentStatus = newStatus;
+          user.faceDescriptor = data.user.faceDescriptor || [];
+          localStorage.setItem('currentUser', JSON.stringify(user));
+          updateFaceStatus();
+
+          if (newStatus === 'approved') {
+            showToast('Your face enrollment has been approved! You can now mark attendance.', 'success');
+          } else if (newStatus === 'rejected') {
+            showToast('Your face enrollment was rejected. Please re-enroll.', 'error');
+          }
+        }
+      } catch (e) {
+        // Silent fail for polling
+      }
+    }, 15000);
 
     async function loadModels() {
       if (modelsLoaded) return;

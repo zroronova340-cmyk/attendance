@@ -382,11 +382,43 @@
     document.getElementById('sidebarAvatar').textContent = nameText.charAt(0).toUpperCase();
 
     // Show face enrolled badge and hide enroll btn if already done
-    if (user.faceDescriptor && user.faceDescriptor.length > 0) {
+    const facIsApproved = user.faceEnrollmentStatus === 'approved';
+    const facIsPending = user.faceEnrollmentStatus === 'pending';
+    if (user.faceDescriptor && user.faceDescriptor.length > 0 && facIsApproved) {
       document.getElementById('faceFlagBadge').style.display = 'inline-block';
       document.getElementById('facEnrollBtn').style.display = 'none';
-      document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:var(--secondary);">Enrolled ✅</span>';
+      document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:#22c55e;">Approved ✅</span>';
+    } else if (facIsPending) {
+      document.getElementById('faceFlagBadge').style.display = 'none';
+      document.getElementById('facEnrollBtn').style.display = 'none';
+      document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:#eab308;">⏳ Pending admin approval</span>';
     }
+
+    // Poll for face enrollment status changes
+    let facLastStatus = user.faceEnrollmentStatus;
+    setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/profile/${user._id}?type=${user.type}`);
+        const data = await res.json();
+        if (data.user && data.user.faceEnrollmentStatus !== facLastStatus) {
+          const newStatus = data.user.faceEnrollmentStatus;
+          facLastStatus = newStatus;
+          user.faceEnrollmentStatus = newStatus;
+          user.faceDescriptor = data.user.faceDescriptor || [];
+          localStorage.setItem('currentUser', JSON.stringify(user));
+
+          if (newStatus === 'approved') {
+            document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:#22c55e;">Approved ✅</span>';
+            document.getElementById('facEnrollBtn').style.display = 'none';
+            showToast('Your face enrollment has been approved!', 'success');
+          } else if (newStatus === 'rejected') {
+            document.getElementById('facFaceStatus').innerHTML = 'Biometric: <span style="color:#ef4444;">Rejected - Please re-enroll</span>';
+            document.getElementById('facEnrollBtn').style.display = 'block';
+            showToast('Your face enrollment was rejected. Please re-enroll.', 'error');
+          }
+        }
+      } catch (e) {}
+    }, 15000);
 
     let activeSessionId = null, sessionTimer = null, sectionsData = [];
     let manualSessionId = null;

@@ -9,6 +9,8 @@ const Attendance = require('../models/Attendance');
 const Subject = require('../models/Subject');
 const AuditLog = require('../models/AuditLog');
 const Session = require('../models/Session');
+const { sendSMS, sendEmail, sendPush } = require('../utils/notificationHelper');
+const PushSubscription = require('../models/PushSubscription');
 
 // Setup default branches (useful for initialization)
 router.post('/init', async (req, res) => {
@@ -271,6 +273,102 @@ router.put('/users/:id/reset-face', async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.params.id, { faceDescriptor: [] });
     res.json({ message: 'Face data reset' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Get pending face enrollments (students + users)
+router.get('/pending-face-enrollments', async (req, res) => {
+  try {
+    const [pendingStudents, pendingUsers] = await Promise.all([
+      Student.find({ faceEnrollmentStatus: 'pending' }).select('reg name sectionId pendingFaceSubmittedAt faceEnrollmentStatus'),
+      User.find({ faceEnrollmentStatus: 'pending' }).select('name facultyId adminId type pendingFaceSubmittedAt faceEnrollmentStatus')
+    ]);
+    res.json({ students: pendingStudents, users: pendingUsers });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Approve face enrollment
+router.put('/approve-face/:type/:id', async (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const model = type === 'student' ? Student : User;
+    const user = await model.findById(id);
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.faceEnrollmentStatus !== 'pending') {
+      return res.status(400).json({ message: 'No pending face enrollment to approve' });
+    }
+
+    // Move pending to approved
+    user.faceDescriptor = user.pendingFaceDescriptor;
+    user.faceEnrollmentStatus = 'approved';
+    user.pendingFaceDescriptor = [];
+    user.pendingFaceSubmittedAt = null;
+    await user.save();
+
+    // Notify user
+    const userLabel = user.reg || user.facultyId || user.adminId || user.name;
+    const msg = `Smart Attendance: Your face enrollment has been approved! You can now mark attendance.`;
+    if (user.phone) sendSMS(user.phone, msg);
+    if (user.mail) sendEmail(user.mail, 'Face Enrollment Approved', msg);
+
+    // Push notification
+    const subscription = await PushSubscription.findOne({ userId: user._id });
+    if (subscription?.subscription) sendPush(subscription.subscription, 'Face Enrollment Approved', 'Your face has been approved! You can now mark attendance.');
+
+    // Audit log
+    await AuditLog.create({
+      performedBy: 'Admin',
+      action: 'Face Enrollment Approval',
+      targetId: userLabel,
+      details: `Approved face enrollment for ${userLabel}`
+    });
+
+    res.json({ message: 'Face enrollment approved', user });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Reject face enrollment
+router.put('/reject-face/:type/:id', async (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const { reason } = req.body;
+    const model = type === 'student' ? Student : User;
+    const user = await model.findById(id);
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.faceEnrollmentStatus !== 'pending') {
+      return res.status(400).json({ message: 'No pending face enrollment to reject' });
+    }
+
+    user.faceEnrollmentStatus = 'rejected';
+    user.pendingFaceDescriptor = [];
+    user.pendingFaceSubmittedAt = null;
+    await user.save();
+
+    // Notify user
+    const userLabel = user.reg || user.facultyId || user.adminId || user.name;
+    const rejectMsg = reason
+      ? `Smart Attendance: Your face enrollment was rejected. Reason: ${reason}. Please re-enroll with a clearer photo.`
+      : `Smart Attendance: Your face enrollment was rejected. Please re-enroll with a clearer photo.`;
+    if (user.phone) sendSMS(user.phone, rejectMsg);
+    if (user.mail) sendEmail(user.mail, 'Face Enrollment Rejected', rejectMsg);
+
+    // Push notification
+    const subscription = await PushSubscription.findOne({ userId: user._id });
+    if (subscription?.subscription) {
+      sendPush(subscription.subscription, 'Face Enrollment Rejected', reason || 'Please re-enroll with a clearer photo.');
+    }
+
+    // Audit log
+    await AuditLog.create({
+      performedBy: 'Admin',
+      action: 'Face Enrollment Rejection',
+      targetId: userLabel,
+      details: `Rejected face enrollment for ${userLabel}. Reason: ${reason || 'Not provided'}`
+    });
+
+    res.json({ message: 'Face enrollment rejected', user });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

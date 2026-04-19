@@ -36,6 +36,21 @@ router.get('/registration-status', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Get User Profile
+router.get('/profile/:id', async (req, res) => {
+  try {
+    const { type } = req.query;
+    let user;
+    if (type === 'student' || type === 'cr') {
+      user = await Student.findById(req.params.id).select('-pendingFaceDescriptor');
+    } else {
+      user = await User.findById(req.params.id).select('-pendingFaceDescriptor');
+    }
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ user });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Register
 router.post('/register', async (req, res) => {
   try {
@@ -313,7 +328,7 @@ router.put('/update-profile', async (req, res) => {
   }
 });
 
-// Enroll Face Data
+// Enroll Face Data (Pending Admin Approval)
 router.post('/enroll-face', async (req, res) => {
   try {
     const { userId, type, descriptor } = req.body;
@@ -330,7 +345,7 @@ router.post('/enroll-face', async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // SECURITY: Ensure Face Uniqueness (New requirement)
+    // Check uniqueness against approved faces
     const [allUsers, allStudents] = await Promise.all([
       User.find({ faceDescriptor: { $exists: true, $ne: [] } }),
       Student.find({ faceDescriptor: { $exists: true, $ne: [] } })
@@ -340,8 +355,6 @@ router.post('/enroll-face', async (req, res) => {
       if (u._id.toString() !== userId && u.faceDescriptor && u.faceDescriptor.length === 128) {
         const dist = calculateEuclideanDistance(descriptor, u.faceDescriptor);
         if (dist < 0.5) {
-          // ── TWIN EXCEPTION ──
-          // If the current user is a registered twin AND the matching user is their twin pair, allow it.
           const isTwinPair =
             user.isTwin &&
             user.twinReg &&
@@ -350,27 +363,28 @@ router.post('/enroll-face', async (req, res) => {
           if (!isTwinPair) {
             return res.status(409).json({ message: 'Security Alert: This biometric profile is already assigned to another account.' });
           }
-          // Twin pair allowed — no block
         }
       }
     }
 
-    // SECURITY: If face is already enrolled, verify match before allowing update
-    if (user.faceDescriptor && user.faceDescriptor.length === 128) {
-      const distance = calculateEuclideanDistance(descriptor, user.faceDescriptor);
-      if (distance > 0.5) {
-        return res.status(403).json({ 
-          message: 'Security Alert: Recognition failed. The new scan does not match the original biometric profile. If you need to reset your face data, please contact the administrator.' 
-        });
-      }
-    }
-
-    user.faceDescriptor = descriptor;
+    // Save as pending (admin approval required)
+    user.pendingFaceDescriptor = descriptor;
+    user.faceEnrollmentStatus = 'pending';
+    user.pendingFaceSubmittedAt = new Date();
     await user.save();
+
+    // Notify admin about pending face enrollment
+    const userLabel = user.reg || user.facultyId || user.adminId || user.name;
+    const adminMsg = `Smart Attendance: New face enrollment request from ${userLabel} (${type}). Please verify in Admin Dashboard.`;
+    const admins = await User.find({ type: 'admin' });
+    for (const admin of admins) {
+      if (admin.phone) sendSMS(admin.phone, adminMsg);
+      if (admin.mail) sendEmail(admin.mail, 'Face Enrollment Request', adminMsg);
+    }
 
     const userData = user.toObject();
     userData.type = type;
-    res.json({ message: 'Face biometric synced successfully!', user: userData });
+    res.json({ message: 'Face enrollment submitted! Pending admin approval.', user: userData, status: 'pending' });
   } catch (err) {
     console.error('Enroll Error:', err);
     res.status(500).json({ message: 'Face enrollment failed' });
@@ -429,6 +443,11 @@ router.post('/mark-attendance-face', async (req, res) => {
 
     if (!user || !user.faceDescriptor || user.faceDescriptor.length === 0) {
       return res.status(400).json({ message: 'Face data not enrolled!' });
+    }
+
+    // Check if face enrollment is approved
+    if (user.faceEnrollmentStatus !== 'approved') {
+      return res.status(403).json({ message: 'Face enrollment pending admin approval.' });
     }
 
     // Verify face
@@ -557,12 +576,12 @@ router.post('/face-login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid face descriptor.' });
     }
 
-    // Search both collections
+    // Search both collections (only approved faces)
     const [users, students] = await Promise.all([
-      User.find({ faceDescriptor: { $exists: true, $ne: [] } }),
-      Student.find({ faceDescriptor: { $exists: true, $ne: [] } }).populate('sectionId')
+      User.find({ faceDescriptor: { $exists: true, $ne: [] }, faceEnrollmentStatus: 'approved' }),
+      Student.find({ faceDescriptor: { $exists: true, $ne: [] }, faceEnrollmentStatus: 'approved' }).populate('sectionId')
     ]);
-    
+
     let bestMatch = null;
     let minDistance = 0.5;
 
@@ -591,7 +610,7 @@ router.post('/face-login', async (req, res) => {
     }
 
     if (!bestMatch) {
-      return res.status(401).json({ message: 'Face not recognized.' });
+      return res.status(401).json({ message: 'Face not recognized or not approved.' });
     }
 
     // ── TWIN AMBIGUITY CHECK ──
