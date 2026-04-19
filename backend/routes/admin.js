@@ -294,10 +294,13 @@ router.put('/users/:id/reset-face', async (req, res) => {
 router.get('/pending-face-enrollments', async (req, res) => {
   try {
     const [pendingStudents, pendingUsers] = await Promise.all([
-      Student.find({ faceEnrollmentStatus: 'pending' }).select('reg name sectionId pendingFaceSubmittedAt faceEnrollmentStatus'),
-      User.find({ faceEnrollmentStatus: 'pending' }).select('name facultyId adminId type pendingFaceSubmittedAt faceEnrollmentStatus')
+      Student.find({ $or: [{ faceEnrollmentStatus: 'pending' }, { faceEnrollmentStatus: null }] }).select('reg name sectionId pendingFaceSubmittedAt faceEnrollmentStatus'),
+      User.find({ $or: [{ faceEnrollmentStatus: 'pending' }, { faceEnrollmentStatus: null }] }).select('name facultyId adminId type pendingFaceSubmittedAt faceEnrollmentStatus')
     ]);
-    res.json({ students: pendingStudents, users: pendingUsers });
+    // Filter to only show those with pendingFaceDescriptor
+    const studentsWithPending = pendingStudents.filter(s => s.pendingFaceDescriptor && s.pendingFaceDescriptor.length > 0);
+    const usersWithPending = pendingUsers.filter(u => u.pendingFaceDescriptor && u.pendingFaceDescriptor.length > 0);
+    res.json({ students: studentsWithPending, users: usersWithPending });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -309,7 +312,7 @@ router.put('/approve-face/:type/:id', async (req, res) => {
     const user = await model.findById(id);
 
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (user.faceEnrollmentStatus !== 'pending') {
+    if (!user.pendingFaceDescriptor || user.pendingFaceDescriptor.length === 0) {
       return res.status(400).json({ message: 'No pending face enrollment to approve' });
     }
 
