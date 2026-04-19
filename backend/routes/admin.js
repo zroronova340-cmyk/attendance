@@ -220,7 +220,14 @@ router.delete('/students/:id', async (req, res) => {
 
 router.put('/students/:id/reset-face', async (req, res) => {
   try {
-    await Student.findByIdAndUpdate(req.params.id, { faceDescriptor: [] });
+    await Student.findByIdAndUpdate(req.params.id, {
+      faceDescriptor: [],
+      faceEnrollmentStatus: null,
+      pendingFaceDescriptor: [],
+      pendingFaceSubmittedAt: null,
+      lockedDeviceId: null,
+      registeredIP: null
+    });
     res.json({ message: 'Face biometric reset' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -271,7 +278,14 @@ router.put('/approve-user/:id', async (req, res) => {
 
 router.put('/users/:id/reset-face', async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.params.id, { faceDescriptor: [] });
+    await User.findByIdAndUpdate(req.params.id, {
+      faceDescriptor: [],
+      faceEnrollmentStatus: null,
+      pendingFaceDescriptor: [],
+      pendingFaceSubmittedAt: null,
+      lockedDeviceId: null,
+      registeredIP: null
+    });
     res.json({ message: 'Face data reset' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
