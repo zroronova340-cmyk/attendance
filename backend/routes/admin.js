@@ -652,4 +652,63 @@ router.put('/students/:id/reset-iris', async (req, res) => {
   }
 });
 
+// Lookup password by register number or ID
+router.get('/lookup-password', async (req, res) => {
+  try {
+    const { key } = req.query;
+    if (!key) return res.status(400).json({ message: 'Search key required' });
+
+    const searchKey = key.toUpperCase().trim();
+
+    // Search in Student collection by reg
+    let student = await Student.findOne({ reg: searchKey });
+    if (student) {
+      return res.json({
+        found: true,
+        name: student.name,
+        reg: student.reg,
+        password: student.pass,
+        type: 'student',
+        otherAccounts: await getOtherAccounts(student.name, student.reg)
+      });
+    }
+
+    // Search in User collection by facultyId, adminId, or reg
+    let user = await User.findOne({
+      $or: [{ facultyId: searchKey }, { adminId: searchKey }, { reg: searchKey }]
+    });
+    if (user) {
+      return res.json({
+        found: true,
+        name: user.name,
+        reg: user.reg || user.facultyId || user.adminId,
+        password: user.pass,
+        type: user.type,
+        otherAccounts: []
+      });
+    }
+
+    res.json({ found: false, message: 'No user found with this ID' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper to find other accounts for same person
+async function getOtherAccounts(name, reg) {
+  const otherAccounts = [];
+
+  // Check if same name exists in User collection (could be CR, faculty, admin)
+  const usersWithSameName = await User.find({ name: name });
+  for (const u of usersWithSameName) {
+    otherAccounts.push({
+      type: u.type,
+      id: u.facultyId || u.adminId || u.reg,
+      password: u.pass
+    });
+  }
+
+  return otherAccounts;
+}
+
 module.exports = router;

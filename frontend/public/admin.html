@@ -640,6 +640,10 @@
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-1.496-7.448a4.805 4.805 0 010-9.607"/></svg>
         <span>Authentication</span>
       </button>
+      <button class="tab-btn" data-tab="password-lookup">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        <span>Password Lookup</span>
+      </button>
       <button class="tab-btn" data-tab="geofencing">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="11" r="3"/><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
         <span>Geo-Tagging</span>
@@ -777,6 +781,30 @@
             </div>
         </div>
     </div>
+
+    <!-- PASSWORD LOOKUP TAB -->
+    <div id="password-lookup" class="tab-content" style="display:none">
+        <div class="admin-card">
+            <h3>Password Lookup</h3>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:16px;">Search by Register Number, Faculty ID, or Admin ID to view password.</p>
+            <div class="form-inline" style="background:transparent; border:none; padding:0; gap:10px; margin-bottom:20px;">
+                <input type="text" id="passwordSearchReg" placeholder="Enter Register No / Faculty ID / Admin ID">
+                <button onclick="searchPassword()" style="background:var(--primary); color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer;">Search</button>
+            </div>
+            <div id="passwordResult" style="display:none; padding:16px; background:#f8fafc; border-radius:12px; margin-top:12px;">
+                <div style="margin-bottom:12px;"><strong>Name:</strong> <span id="pwdName"></span></div>
+                <div style="margin-bottom:12px;"><strong>ID/Reg:</strong> <span id="pwdReg"></span></div>
+                <div style="margin-bottom:12px;"><strong>Type:</strong> <span id="pwdType"></span></div>
+                <div style="margin-bottom:12px;"><strong>Password:</strong> <span id="pwdPass" style="font-weight:bold; color:var(--primary);"></span></div>
+                <div id="otherAccountsSection" style="display:none; margin-top:16px; padding-top:12px; border-top:1px solid #ddd;">
+                    <strong style="color:var(--accent);">Other Accounts (Same Person):</strong>
+                    <div id="otherAccountsList" style="margin-top:8px;"></div>
+                </div>
+            </div>
+            <div id="passwordError" style="display:none; padding:16px; background:#fee2e2; border-radius:12px; color:#991b1b; margin-top:12px;"></div>
+        </div>
+    </div>
+
     <div id="students" class="tab-content" style="display:none">
       <div class="admin-card" style="background: #fdfdfd; border-left: 5px solid var(--secondary);">
         <h3>Batch Registration (Bulk)</h3>
@@ -1045,6 +1073,7 @@
         if(tabId === 'reports') loadAttendanceReports();
         if(tabId === 'approvals') loadPendingApprovals();
         if(tabId === 'face-enrollments') loadFaceEnrollments();
+        if(tabId === 'password-lookup') { document.getElementById('passwordSearchReg').value = ''; document.getElementById('passwordResult').style.display = 'none'; document.getElementById('passwordError').style.display = 'none'; }
         if(tabId === 'audit') loadAuditLogs();
         if(tabId === 'attendance-edit') {
             const editSelect = document.getElementById('editAttendanceSection');
@@ -1318,6 +1347,48 @@
         });
         if(res.ok) { showMsg('Face enrollment rejected'); loadFaceEnrollments(); }
         else { showMsg('Rejection failed', true); }
+    }
+
+    // Password Lookup
+    async function searchPassword() {
+        const searchKey = document.getElementById('passwordSearchReg').value.trim();
+        if (!searchKey) return showMsg('Please enter a register number or ID', true);
+
+        document.getElementById('passwordResult').style.display = 'none';
+        document.getElementById('passwordError').style.display = 'none';
+
+        try {
+            const res = await fetch(`${API_URL}/admin/lookup-password?key=${encodeURIComponent(searchKey)}`);
+            const data = await res.json();
+
+            if (res.ok && data.found) {
+                document.getElementById('pwdName').textContent = data.name;
+                document.getElementById('pwdReg').textContent = data.reg || data.facultyId || data.adminId;
+                document.getElementById('pwdType').textContent = data.type;
+                document.getElementById('pwdPass').textContent = data.password;
+                document.getElementById('passwordResult').style.display = 'block';
+
+                // Show other accounts if any
+                const otherSection = document.getElementById('otherAccountsSection');
+                const otherList = document.getElementById('otherAccountsList');
+                otherList.innerHTML = '';
+                if (data.otherAccounts && data.otherAccounts.length > 0) {
+                    otherSection.style.display = 'block';
+                    data.otherAccounts.forEach(acc => {
+                        otherList.innerHTML += `<div style="padding:8px; background:#fffbeb; border-radius:6px; margin-bottom:8px;">
+                            <strong>${acc.type.toUpperCase()}:</strong> ${acc.id} | <strong>Pass:</strong> ${acc.password}
+                        </div>`;
+                    });
+                } else {
+                    otherSection.style.display = 'none';
+                }
+            } else {
+                document.getElementById('passwordError').textContent = data.message || 'User not found';
+                document.getElementById('passwordError').style.display = 'block';
+            }
+        } catch (e) {
+            showMsg('Error searching password', true);
+        }
     }
 
     // Attendance Editing Logic
