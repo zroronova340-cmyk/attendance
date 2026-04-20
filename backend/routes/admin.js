@@ -308,9 +308,13 @@ router.put('/approve-face/:id', async (req, res) => {
       return res.status(400).json({ message: 'Already processed' });
     }
 
-    // Find the user and update
-    const model = enrollment.userType === 'student' ? Student : User;
-    const user = await model.findById(enrollment.userId);
+    // Find the user - check both collections
+    let model = User;
+    let user = await User.findById(enrollment.userId);
+    if (!user) {
+      model = Student;
+      user = await Student.findById(enrollment.userId);
+    }
     if (user) {
       user.faceDescriptor = enrollment.faceDescriptor;
       user.faceEnrollmentStatus = 'approved';

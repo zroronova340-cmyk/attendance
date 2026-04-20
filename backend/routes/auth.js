@@ -444,9 +444,12 @@ router.post('/mark-attendance-face', async (req, res) => {
   try {
     const { userId, type, descriptor, latitude, longitude, currentTime, subjectId } = req.body;
     let user;
-    
-    if (type === 'student' || type === 'cr') {
-      user = await Student.findById(userId).populate('sectionId');
+
+    // Check both Student and User collections (CR can be in either)
+    let fromStudent = false;
+    user = await Student.findById(userId).populate('sectionId');
+    if (user) {
+      fromStudent = true;
     } else {
       user = await User.findById(userId);
     }
@@ -469,12 +472,12 @@ router.post('/mark-attendance-face', async (req, res) => {
     // Face verified, now mark attendance
     const now = currentTime ? new Date(currentTime) : new Date();
     const today = now.toISOString().split('T')[0];
-    
-    // Support both populated and unpopulated section IDs with a safety check
+
+    // Support both Student (with sectionId) and User (with section) collections
     let sId = null;
-    if (type === 'student' || type === 'cr') {
-        sId = user.sectionId ? (user.sectionId._id || user.sectionId) : null;
-    } else {
+    if (user.sectionId) {
+        sId = user.sectionId._id || user.sectionId;
+    } else if (user.section) {
         sId = user.section;
     }
 
