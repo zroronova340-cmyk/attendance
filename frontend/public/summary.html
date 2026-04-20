@@ -148,9 +148,10 @@
     .table-card {
       border-radius: 16px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 32px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
     }
 
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; min-width: 400px; }
     th {
       text-align: left; padding: 14px 20px;
       background: linear-gradient(135deg, #f1f5f9 0%, #e8edf5 100%);
