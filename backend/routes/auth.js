@@ -445,14 +445,17 @@ router.post('/mark-attendance-face', async (req, res) => {
     const { userId, type, descriptor, latitude, longitude, currentTime, subjectId } = req.body;
     let user;
 
-    // Check both Student and User collections (CR can be in either)
-    let fromStudent = false;
+    console.log('[FACE-ATTENDANCE] userId:', userId, 'type:', type);
+
+    // Check both Student and User collections
     user = await Student.findById(userId).populate('sectionId');
-    if (user) {
-      fromStudent = true;
-    } else {
+    if (!user) {
       user = await User.findById(userId);
     }
+
+    console.log('[FACE-ATTENDANCE] Found user:', user ? user._id : null);
+    console.log('[FACE-ATTENDANCE] faceDescriptor:', user?.faceDescriptor?.length);
+    console.log('[FACE-ATTENDANCE] faceEnrollmentStatus:', user?.faceEnrollmentStatus);
 
     if (!user || !user.faceDescriptor || user.faceDescriptor.length === 0) {
       return res.status(400).json({ message: 'Face data not enrolled!' });
@@ -465,6 +468,7 @@ router.post('/mark-attendance-face', async (req, res) => {
 
     // Verify face
     const dist = calculateEuclideanDistance(descriptor, user.faceDescriptor);
+    console.log('[FACE-ATTENDANCE] Distance:', dist);
     if (dist > 0.5) {
       return res.status(401).json({ message: 'Face mismatch! Recognition failed.' });
     }

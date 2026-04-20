@@ -315,10 +315,15 @@ router.put('/approve-face/:id', async (req, res) => {
       model = Student;
       user = await Student.findById(enrollment.userId);
     }
+
+    console.log('[APPROVE-FACE] Found user:', user ? user._id : null, 'in collection:', user ? model.modelName : 'none');
+    console.log('[APPROVE-FACE] Before - faceDescriptor:', user?.faceDescriptor?.length, 'status:', user?.faceEnrollmentStatus);
+
     if (user) {
       user.faceDescriptor = enrollment.faceDescriptor;
       user.faceEnrollmentStatus = 'approved';
       await user.save();
+      console.log('[APPROVE-FACE] After - faceDescriptor:', user.faceDescriptor?.length, 'status:', user.faceEnrollmentStatus);
     }
 
     // Update enrollment status
