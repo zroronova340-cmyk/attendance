@@ -454,6 +454,8 @@ router.post('/mark-attendance-face', async (req, res) => {
     }
 
     console.log('[FACE-ATTENDANCE] Found user:', user ? user._id : null);
+    console.log('[FACE-ATTENDANCE] Found user reg:', user?.reg);
+    console.log('[FACE-ATTENDANCE] Found user sectionId:', user?.sectionId);
     console.log('[FACE-ATTENDANCE] faceDescriptor:', user?.faceDescriptor?.length);
     console.log('[FACE-ATTENDANCE] faceEnrollmentStatus:', user?.faceEnrollmentStatus);
 
@@ -499,15 +501,23 @@ router.post('/mark-attendance-face', async (req, res) => {
 
     // Support both Student (with sectionId) and User (with section) collections
     let sId = null;
+    console.log('[MARK-ATTENDANCE] user.sectionId raw:', user.sectionId);
+    console.log('[MARK-ATTENDANCE] user.sectionId type:', typeof user.sectionId);
     if (user.sectionId) {
-        sId = user.sectionId._id || user.sectionId;
+        if (typeof user.sectionId === 'object' && user.sectionId._id) {
+            sId = user.sectionId._id.toString();
+        } else if (typeof user.sectionId === 'string') {
+            sId = user.sectionId;
+        }
     } else if (user.section) {
         sId = user.section;
     }
+    console.log('[MARK-ATTENDANCE] Extracted sId:', sId);
 
     const regNum = user.reg || user.registerNumber || user.facultyId || user.adminId;
 
-    console.log('[MARK-ATTENDANCE] sId:', sId, 'regNum:', regNum);
+    console.log('[MARK-ATTENDANCE] After section extraction - sId:', sId);
+    console.log('[MARK-ATTENDANCE] regNum:', regNum);
 
     if (!sId || !regNum) {
       return res.status(400).json({ message: 'Authorization error: Profile incomplete (Missing ID/Section).' });
