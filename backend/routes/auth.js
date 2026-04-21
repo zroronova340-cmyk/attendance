@@ -495,6 +495,8 @@ router.post('/mark-attendance-face', async (req, res) => {
     const now = currentTime ? new Date(currentTime) : new Date();
     const today = now.toISOString().split('T')[0];
 
+    console.log('[MARK-ATTENDANCE] User:', user.reg || user.facultyId, 'sectionId:', user.sectionId);
+
     // Support both Student (with sectionId) and User (with section) collections
     let sId = null;
     if (user.sectionId) {
@@ -505,16 +507,21 @@ router.post('/mark-attendance-face', async (req, res) => {
 
     const regNum = user.reg || user.registerNumber || user.facultyId || user.adminId;
 
+    console.log('[MARK-ATTENDANCE] sId:', sId, 'regNum:', regNum);
+
     if (!sId || !regNum) {
       return res.status(400).json({ message: 'Authorization error: Profile incomplete (Missing ID/Section).' });
     }
 
     const sectionDoc = await Section.findById(sId);
+    console.log('[MARK-ATTENDANCE] sectionDoc:', sectionDoc ? sectionDoc.name : 'NOT FOUND');
     if (!sectionDoc) return res.status(404).json({ message: 'Assigned section was not found.' });
 
     // --- GEOTAGGING CHECK ---
+    console.log('[MARK-ATTENDANCE] Location check - lat:', latitude, 'lng:', longitude, 'section has geofence:', !!(sectionDoc.location && sectionDoc.location.lat));
     if (sectionDoc.location && sectionDoc.location.lat && sectionDoc.location.lng) {
       if (!latitude || !longitude) {
+        console.log('[MARK-ATTENDANCE] DENIED: No location provided but section requires geofencing');
         return res.status(403).json({ message: 'Secure boundary check requires location access.' });
       }
 
@@ -538,9 +545,11 @@ router.post('/mark-attendance-face', async (req, res) => {
     }
 
     // Time Window Check (Enforced in IST to prevent UTC drift)
+    console.log('[MARK-ATTENDANCE] Time window check - start:', sectionDoc.timeWindow?.start, 'end:', sectionDoc.timeWindow?.end);
     if (sectionDoc.timeWindow && sectionDoc.timeWindow.start && sectionDoc.timeWindow.end) {
       const { start, end } = sectionDoc.timeWindow;
       const currentStr = now.toLocaleTimeString('en-GB', { hour12: false, timeZone: 'Asia/Kolkata' }).substring(0, 5); // 24h format
+      console.log('[MARK-ATTENDANCE] Current time (IST):', currentStr, 'Window:', start, '-', end);
       
       let isWithinWindow = (start <= end) 
         ? (currentStr >= start && currentStr <= end)
@@ -582,6 +591,7 @@ router.post('/mark-attendance-face', async (req, res) => {
     }
 
     await attendance.save();
+    console.log('[MARK-ATTENDANCE] Saved! Records:', attendance.records.length, 'for date:', today);
 
     // Twin Face Duplication: Mark attendance for twin sibling if applicable
     if (user.isTwin && user.twinReg) {
