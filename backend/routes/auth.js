@@ -622,12 +622,12 @@ router.post('/mark-attendance-face', async (req, res) => {
       if (twinRecordIndex === -1) {
         attendance.records.push({ registerNumber: user.twinReg, status: 'present', lat: latitude, lng: longitude, viaTwin: regNum });
         await attendance.save();
-        res.json({ message: 'Self-Attendance marked for both! (Twin duplication applied)' });
+        res.json({ message: `Face verified! Presence marked for ${regNum} and twin sibling ${user.twinReg}.` });
         return;
       }
     }
 
-    res.json({ message: 'Self-Attendance marked successfully!' });
+    res.json({ message: `Identity verified! Presence posted for ${regNum} at ${today}. ✓` });
 
   } catch (err) {
     console.error('Face Attendance Error:', err);
@@ -823,7 +823,7 @@ router.post('/mark-attendance-iris', async (req, res) => {
     }
     await attendance.save();
 
-    res.json({ message: `Iris attendance marked for ${student.name}!` });
+    res.json({ message: `Iris verified! Presence posted for ${student.reg} (${student.name}). ✓` });
   } catch (err) {
     res.status(500).json({ message: 'Iris attendance failed: ' + err.message });
   }

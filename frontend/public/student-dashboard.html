@@ -1211,7 +1211,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: data.student._id,
+            userId: data.user._id,
             type: 'student',
             latitude: window._pendingTwinLat,
             longitude: window._pendingTwinLng,
@@ -1221,7 +1221,7 @@
         const markData = await markRes.json();
         stopIrisCamera();
         document.getElementById('irisModal').style.display = 'none';
-        showToast(markData.message || `Attendance marked for ${data.student.name}`, markRes.ok ? 'success' : 'error');
+        showToast(markData.message || `Attendance posted for ${data.user.name} ✓`, markRes.ok ? 'success' : 'error');
       } catch(err) {
         setIrisModalStatus('❌ Error: ' + err.message);
       }
