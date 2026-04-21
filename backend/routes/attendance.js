@@ -94,11 +94,20 @@ router.post('/manual-entry', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Get attendance for a specific section and date
+// Get attendance for a specific section, date, and optional subject
 router.get('/get/:sectionId/:date', async (req, res) => {
   try {
     const { sectionId, date } = req.params;
-    const attendance = await Attendance.findOne({ sectionId, date });
+    const { subjectId } = req.query;
+    
+    let query = { sectionId, date };
+    if (subjectId && subjectId !== 'null' && subjectId !== 'undefined') {
+        query.subjectId = subjectId;
+    } else {
+        query.subjectId = null;
+    }
+
+    const attendance = await Attendance.findOne(query);
     if (!attendance) return res.json({ records: [] });
     res.json(attendance);
   } catch (err) {

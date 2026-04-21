@@ -809,6 +809,8 @@
     loadSubjects();
     // Refresh active sessions every 30 seconds
     setInterval(loadSubjects, 30000);
+    // Refresh attendance stats every 10 seconds
+    setInterval(loadAttendanceStats, 10000);
 
     // === FACE LOGIC ===
     let modelsLoaded = false, stream = null, currentDescriptor = null, isEnrollmentMode = false;
@@ -1061,7 +1063,7 @@
         return;
       }
 
-      const res = await fetch(`${API_URL}/auth/${isEnrollmentMode ? 'enroll-face' : 'face-login'}`, {
+      const res = await fetch(`${API_URL}/auth/${isEnrollmentMode ? 'enroll-face' : 'mark-attendance-face'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             userId: user._id, 

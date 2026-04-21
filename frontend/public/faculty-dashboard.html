@@ -526,9 +526,10 @@
     async function refreshLiveFeed() {
       if (!activeSessionId) return;
       const sId = document.getElementById('sectionSelect').value;
+      const subId = document.getElementById('subjectSelect').value;
       const today = new Date().toISOString().split('T')[0];
       const [attRes, stuRes] = await Promise.all([
-        fetch(`${API_URL}/attendance/get/${sId}/${today}`),
+        fetch(`${API_URL}/attendance/get/${sId}/${today}?subjectId=${subId || 'null'}`),
         fetch(`${API_URL}/admin/students?sectionId=${sId}`)
       ]);
       const data = await attRes.json();
@@ -823,6 +824,13 @@
       window.location.href = 'auth.html'; 
     };
     init();
+
+    // Auto-refresh live feed every 10 seconds if a session is active
+    setInterval(() => {
+        if (activeSessionId) {
+            refreshLiveFeed();
+        }
+    }, 10000);
 
     // --- DARK MODE LOGIC ---
     (function() {

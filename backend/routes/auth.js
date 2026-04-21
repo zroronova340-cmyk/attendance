@@ -1,5 +1,5 @@
 const express = require('express');
-const mongoose = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const User = require('../models/User');
 const Section = require('../models/Section');
@@ -471,6 +471,24 @@ router.post('/mark-attendance-face', async (req, res) => {
     console.log('[FACE-ATTENDANCE] Distance:', dist);
     if (dist > 0.5) {
       return res.status(401).json({ message: 'Face mismatch! Recognition failed.' });
+    }
+
+    // --- TWIN AMBIGUITY CHECK (Security) ---
+    if (user.isTwin && user.twinReg) {
+      const twinUser = await Student.findOne({ reg: user.twinReg });
+      if (twinUser && twinUser.faceDescriptor && twinUser.faceDescriptor.length === 128) {
+        const twinDist = calculateEuclideanDistance(descriptor, twinUser.faceDescriptor);
+        if (twinDist < 0.55) {
+          return res.status(428).json({
+            message: 'Twin Ambiguity: Face is too similar to your twin sibling. Please complete Iris Scan.',
+            requiresIris: true,
+            candidates: [
+              { reg: user.reg, name: user.name, _id: user._id },
+              { reg: twinUser.reg, name: twinUser.name, _id: twinUser._id }
+            ]
+          });
+        }
+      }
     }
 
     // Face verified, now mark attendance

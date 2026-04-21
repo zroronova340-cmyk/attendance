@@ -2007,6 +2007,13 @@
     // Start
     loadBranches(); loadSections(); loadStudents(); loadUsers(); loadReg(); loadAttendanceReports();
 
+    // Auto-refresh attendance reports every 10 seconds for real-time updates
+    setInterval(() => {
+        if(document.visibilityState === 'visible') {
+            loadAttendanceReports();
+        }
+    }, 10000);
+
     // --- TWIN MANAGEMENT FUNCTIONS ---
     async function loadTwinStudents() {
         const res = await fetch(`${API_URL}/admin/students`);

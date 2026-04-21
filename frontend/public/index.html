@@ -689,21 +689,32 @@
       const res = await fetch(`${API_URL}/admin/subjects?sectionId=${sectionId}`);
       const subjects = await res.json();
       const subSelect = document.getElementById('subjectSelect');
+      const prevVal = subSelect.value;
       subSelect.innerHTML = '<option value="">Select Subject</option>';
       subjects.forEach(sub => subSelect.add(new Option(sub.name, sub._id)));
+      if (prevVal) subSelect.value = prevVal;
     }
+
+    document.getElementById('subjectSelect').addEventListener('change', () => {
+        loadStudents(sectionSelect.value);
+    });
 
     async function loadStudents(sectionId) {
       if (!sectionId) return;
       localStorage.setItem('preferredSectionId', sectionId);
       const date = dateInput.value;
+      const subId = document.getElementById('subjectSelect').value;
 
-      // Skeleton loading
-      tbody.innerHTML = `<tr class="skeleton-row"><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted); font-weight:700;">Syncing records...</td></tr>`;
+      // Skeleton loading (only first time or when section/date/subject changes)
+      const currentParams = `${sectionId}-${date}-${subId}`;
+      if (window.lastParams !== currentParams) {
+        tbody.innerHTML = `<tr class="skeleton-row"><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted); font-weight:700;">Syncing records...</td></tr>`;
+        window.lastParams = currentParams;
+      }
 
       const [stuRes, attRes] = await Promise.all([
         fetch(`${API_URL}/admin/students?sectionId=${sectionId}`),
-        fetch(`${API_URL}/attendance/get/${sectionId}/${date}`)
+        fetch(`${API_URL}/attendance/get/${sectionId}/${date}?subjectId=${subId || 'null'}`)
       ]);
 
       const students = await stuRes.json();
@@ -861,6 +872,13 @@
     });
 
     init();
+
+    // Auto-refresh student list every 10 seconds to show live updates
+    setInterval(() => {
+        if (sectionSelect.value && !document.querySelectorAll('.skeleton-row').length) {
+            loadStudents(sectionSelect.value);
+        }
+    }, 10000);
   </script>
 </body>
 </html>
