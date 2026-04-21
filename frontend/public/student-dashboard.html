@@ -1071,6 +1071,7 @@
             descriptor: Array.from(currentDescriptor), 
             latitude: lat, 
             longitude: lng, 
+            currentTime: new Date().toISOString(),
             subjectId: window.targetSubjectId || null 
         })
       });

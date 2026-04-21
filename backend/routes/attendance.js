@@ -101,11 +101,11 @@ router.get('/get/:sectionId/:date', async (req, res) => {
     const { subjectId } = req.query;
     
     let query = { sectionId, date };
-    if (subjectId && subjectId !== 'null' && subjectId !== 'undefined') {
+    // Only filter by subjectId when one is explicitly provided
+    if (subjectId && subjectId !== 'null' && subjectId !== 'undefined' && subjectId !== '') {
         query.subjectId = subjectId;
-    } else {
-        query.subjectId = null;
     }
+    // When no subjectId is given, find ANY attendance doc for this section/date
 
     const attendance = await Attendance.findOne(query);
     if (!attendance) return res.json({ records: [] });

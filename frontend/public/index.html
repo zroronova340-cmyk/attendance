@@ -712,9 +712,10 @@
         window.lastParams = currentParams;
       }
 
+      const attUrl = `${API_URL}/attendance/get/${sectionId}/${date}` + (subId ? `?subjectId=${subId}` : '');
       const [stuRes, attRes] = await Promise.all([
         fetch(`${API_URL}/admin/students?sectionId=${sectionId}`),
-        fetch(`${API_URL}/attendance/get/${sectionId}/${date}?subjectId=${subId || 'null'}`)
+        fetch(attUrl)
       ]);
 
       const students = await stuRes.json();

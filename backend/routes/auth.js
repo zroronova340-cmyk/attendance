@@ -569,6 +569,9 @@ router.post('/mark-attendance-face', async (req, res) => {
         return res.status(400).json({ message: 'Invalid Subject Selection Error.' });
       }
       query.subjectId = subjectId;
+    } else {
+      // Explicitly match only docs with no subject when student didn't select one
+      query.subjectId = null;
     }
     
     let attendance = await Attendance.findOne(query);

@@ -528,8 +528,9 @@
       const sId = document.getElementById('sectionSelect').value;
       const subId = document.getElementById('subjectSelect').value;
       const today = new Date().toISOString().split('T')[0];
+      const attUrl = `${API_URL}/attendance/get/${sId}/${today}` + (subId ? `?subjectId=${subId}` : '');
       const [attRes, stuRes] = await Promise.all([
-        fetch(`${API_URL}/attendance/get/${sId}/${today}?subjectId=${subId || 'null'}`),
+        fetch(attUrl),
         fetch(`${API_URL}/admin/students?sectionId=${sId}`)
       ]);
       const data = await attRes.json();
