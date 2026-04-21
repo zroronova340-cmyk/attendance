@@ -1089,8 +1089,10 @@
         return;
       }
 
+      console.log('[STUDENT] Mark attendance response:', res.status, res.statusText);
       if (res.ok) {
         const d = await res.json();
+        console.log('[STUDENT] Success:', d);
         if (isEnrollmentMode) {
           user.faceEnrollmentStatus = 'pending';
           localStorage.setItem('currentUser', JSON.stringify(user));
@@ -1099,6 +1101,7 @@
         showToast(d.message || "Operation Successful ✓");
       } else {
         const d = await res.json();
+        console.log('[STUDENT] Error:', d);
         showToast(d.message || "Failed", 'error');
       }
       closeCam();

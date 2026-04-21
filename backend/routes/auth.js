@@ -515,6 +515,8 @@ router.post('/mark-attendance-face', async (req, res) => {
 
     const sectionDoc = await Section.findById(sId);
     console.log('[MARK-ATTENDANCE] sectionDoc:', sectionDoc ? sectionDoc.name : 'NOT FOUND');
+    console.log('[MARK-ATTENDANCE] sectionDoc location:', sectionDoc?.location);
+    console.log('[MARK-ATTENDANCE] sectionDoc timeWindow:', sectionDoc?.timeWindow);
     if (!sectionDoc) return res.status(404).json({ message: 'Assigned section was not found.' });
 
     // --- GEOTAGGING CHECK ---
@@ -591,7 +593,8 @@ router.post('/mark-attendance-face', async (req, res) => {
     }
 
     await attendance.save();
-    console.log('[MARK-ATTENDANCE] Saved! Records:', attendance.records.length, 'for date:', today);
+    console.log('[MARK-ATTENDANCE] SUCCESS! Records:', attendance.records.length, 'for date:', today, 'subjectId:', subjectId);
+    console.log('[MARK-ATTENDANCE] Full record:', JSON.stringify(attendance));
 
     // Twin Face Duplication: Mark attendance for twin sibling if applicable
     if (user.isTwin && user.twinReg) {
