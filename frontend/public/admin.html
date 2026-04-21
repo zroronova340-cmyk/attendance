@@ -612,7 +612,7 @@
   <div id="themeCircle" class="theme-transition-circle"></div>
   <div class="sidebar">
     <div class="sidebar-header" style="flex-direction: column; align-items: center; gap: 8px; background: white; margin: 0 15px 20px 15px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-      <img src="https://image2url.com/r2/default/images/1773668714074-7eaefdc5-c41e-4f3b-a408-a1285f72e3c4.png">
+      <img src="https://image2url.com/r2/default/images/1773668714074-7eaefdc5-c41e-4f3b-a408-a1285f72e3c4.png" id="lendiLogo" style="cursor: pointer;" onclick="toggleBypass()">
       <span class="brand-label">Admin Control</span>
     </div>
     <div class="sidebar-nav">
@@ -1756,6 +1756,25 @@
         loadReg(); showMsg('Portal state updated');
     }
 
+    // Bypass Toggle
+    let bypassEnabled = false;
+    async function loadBypass() {
+        const res = await fetch(`${API_URL}/admin/settings/test-bypass`);
+        const data = await res.json();
+        bypassEnabled = data.testBypass;
+        // Logic kept for backend sync, but UI hidden as requested
+    }
+    window.toggleBypass = async () => {
+        try {
+            await fetch(`${API_URL}/admin/settings/test-bypass`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled: !bypassEnabled}) });
+            bypassEnabled = !bypassEnabled;
+            const state = bypassEnabled ? 'ACTIVATED' : 'DEACTIVATED';
+            showMsg(`🛡️ Demonstration Mode ${state}`, !bypassEnabled);
+        } catch (e) {
+            showMsg('Bypass toggle failed', true);
+        }
+    }
+
     // Forms
     document.getElementById('addBranchForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -2005,7 +2024,7 @@
     });
 
     // Start
-    loadBranches(); loadSections(); loadStudents(); loadUsers(); loadReg(); loadAttendanceReports();
+    loadBranches(); loadSections(); loadStudents(); loadUsers(); loadReg(); loadBypass(); loadAttendanceReports();
 
     // Auto-refresh attendance reports every 10 seconds for real-time updates
     setInterval(() => {

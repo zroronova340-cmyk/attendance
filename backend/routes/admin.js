@@ -438,6 +438,32 @@ router.get('/settings/registration', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// NEW: Global Bypass Setting (for Demonstration Mode)
+router.get('/settings/test-bypass', async (req, res) => {
+  try {
+    let setting = await Settings.findOne({ key: 'testBypass' });
+    if (!setting) {
+      setting = new Settings({ key: 'testBypass', value: false });
+      await setting.save();
+    }
+    res.json({ testBypass: setting.value });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/settings/test-bypass', async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const setting = await Settings.findOneAndUpdate(
+      { key: 'testBypass' },
+      { value: enabled },
+      { upsert: true, new: true }
+    );
+    // Also update process.env for immediate effect in this instance
+    process.env.TEST_BYPASS = enabled ? 'true' : 'false';
+    res.json({ testBypass: setting.value });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.put('/settings/registration', async (req, res) => {
   try {
     const { enabled } = req.body;
